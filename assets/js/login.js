@@ -113,7 +113,7 @@ passwordForm.addEventListener("submit", async (e) => {
       })
     );
 
-    window.location.href = "/index.html";
+    window.location.href = "index.html";
   } catch (err) {
     console.error(err);
     passwordError.textContent = "Credenciales inválidas o error al entrar.";

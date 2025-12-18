@@ -13,7 +13,7 @@ const root = document.getElementById("app");
 
 async function init() {
   if (!pb.authStore.isValid) {
-    window.location.href = "/login.html";
+    window.location.href = "login.html";
     return;
   }
 
@@ -35,7 +35,7 @@ async function init() {
   }
 
   if (!Array.isArray(churches) || churches.length === 0) {
-    window.location.href = "/login.html";
+    window.location.href = "login.html";
     return;
   }
 
@@ -199,7 +199,7 @@ function renderShell(currentChurch, churches) {
 
   document.getElementById("logout-btn").addEventListener("click", () => {
     logout();
-    window.location.href = "/login.html";
+    window.location.href = "login.html";
   });
 
   const churchSelect = document.getElementById("church-switcher-select");
