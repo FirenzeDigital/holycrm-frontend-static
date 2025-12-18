@@ -6,6 +6,8 @@ import { initUsersView } from "./users.js";
 import { initPermissionsView } from "./permissions_ui.js";
 import { initEventsView } from "./events.js";
 import { initGroupsView } from "./groups.js";
+import { initLocationsView } from "./locations.js";
+
 
 
 
@@ -54,6 +56,7 @@ function renderShell(currentChurch, churches) {
   const showPermissions = can("read", "permissions");
   const showEvents = can("read", "events");
   const showGroups = can("read", "groups");
+  const showLocations = can("read", "locations");
 
 
   root.innerHTML = `
@@ -79,6 +82,7 @@ function renderShell(currentChurch, churches) {
           ${showMembers ? `<li><a href="#" data-view="members">Personas</a></li>` : ""}
           ${showGroups ? `<li><a href="#" data-view="groups">Grupos</a></li>` : ""}
           ${showEvents ? `<li><a href="#" data-view="events">Eventos</a></li>` : ""}
+          ${showLocations ? `<li><a href="#" data-view="locations">Misiones</a></li>` : ""}
           <hr align="center" width="20%">
           ${showUsers ? `<li><a href="#" data-view="users">Usuarios</a></li>` : ""}
           ${showPermissions ? `<li><a href="#" data-view="permissions">Permisos</a></li>` : ""}
@@ -134,6 +138,7 @@ function renderShell(currentChurch, churches) {
         <section data-view="permissions" style="display:none"><h1>Cargando módulo...</h1></section>
         <section data-view="events" style="display:none"><h1>Cargando módulo...</h1></section>
         <section data-view="groups" style="display:none"><h1>Cargando módulo...</h1></section>
+        <section data-view="locations" style="display:none"><h1>Cargando módulo...</h1></section>
       </main>
     </div>
   `;
@@ -271,6 +276,13 @@ function renderShell(currentChurch, churches) {
           initGroupsView(church);
         }
 
+        if (view === "locations") {
+          if (!can("read", "locations")) {
+            s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
+            return;
+          }
+          initLocationsView(church);
+        }        
 
       });
     });
