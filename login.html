@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>HolyCRM – Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/assets/css/styles.css" />
+    <!-- PocketBase UMD (global PocketBase constructor) -->
+    <script src="/assets/js/pocketbase.umd.js"></script>
+  </head>
+  <body class="page-login">
+    <main id="app" class="login-container">
+      <section id="step-email">
+        <h1> Login HolyCRM</h1>
+        <form id="email-form" class="card">
+          <label class="field">
+            <span>Email</span>
+            <input type="email" id="email-input" required />
+          </label>
+          <button type="submit">Continue</button>
+          <div id="email-error" class="error"></div>
+        </form>
+      </section>
+
+      <section id="step-church" style="display:none">
+        <h2>Elegí tu iglesia</h2>
+        <ul id="church-list" class="church-list"></ul>
+        <button id="back-to-email" class="secondary">Volver</button>
+      </section>
+
+      <section id="step-password" style="display:none">
+        <h2 id="church-title"></h2>
+        <form id="password-form" class="card">
+          <label class="field">
+            <span>Contraseña</span>
+            <input type="password" id="password-input" required />
+          </label>
+          <button type="submit">Entrar</button>
+          <div id="password-error" class="error"></div>
+        </form>
+      </section>
+
+      
+    </main>
+
+    <script type="module" src="/assets/js/login.js"></script>
+  </body>
+</html>
