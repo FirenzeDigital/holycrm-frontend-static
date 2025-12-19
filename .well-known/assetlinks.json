@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.firenzedigital.twa",
+        "sha256_cert_fingerprints": ["32:41:1D:4C:80:52:D5:E6:52:06:D9:83:B2:00:DB:BA:FC:94:83:47:D4:40:71:BA:7A:2A:A7:19:68:3E:74:C6"]
+      }
+    }]
