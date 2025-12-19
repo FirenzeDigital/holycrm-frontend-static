@@ -12,7 +12,10 @@ export const MODULES = [
   { key: "event_attendance", name: "event_attendance" },
   { key: "groups", name: "groups" },
   { key: "group_memberships", name: "group_memberships" },
-  { key: "locations", name: "group_memberships" },
+  { key: "locations", name: "locations" },
+  { key: "ministries", name: "ministries" },
+  { key: "ministry_memberships", name: "ministry_memberships" },
+  { key: "ministry_activities", name: "ministry_activities" },
 ];
 
 // Default permissions (Option C baseline)
@@ -26,6 +29,9 @@ const DEFAULTS = {
     groups:{ c: true,  r: true,  u: true,  d: true  },
     group_memberships:{ c: true,  r: true,  u: true,  d: true  },
     locations:{ c: true,  r: true,  u: true,  d: true  },
+    ministries:{ c: true,  r: true,  u: true,  d: true  },
+    ministry_memberships:{ c: true,  r: true,  u: true,  d: true  },
+    ministry_activities:{ c: true,  r: true,  u: true,  d: true  },
   },
   manager: {
     members:      { c: true,  r: true,  u: true,  d: true  },

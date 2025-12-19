@@ -1,7 +1,7 @@
 {
   "name": "HolyCRM",
   "short_name": "HolyCRM",
-  "start_url": "/index.html",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#111827",
   "theme_color": "#111827",
