@@ -4,8 +4,8 @@
     "theme_color": "#2196F3",
     "background_color": "#1976D2",
     "display": "fullscreen",
-    "start_url": "/",
-    "scope": "/",
+    "start_url": "/holycrm-frontend-static/",
+    "scope": "/holycrm-frontend-static/",
     "description": "HolyCRM.app - CRM for church management.",
     "orientation": "natural",
     "icons": [
