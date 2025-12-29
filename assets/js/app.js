@@ -8,6 +8,8 @@ import { initEventsView } from "./events.js";
 import { initGroupsView } from "./groups.js";
 import { initLocationsView } from "./locations.js";
 import { initMinistriesView } from "./ministries.js";
+import { initRotasView } from "./rotas.js";
+import { initCalendarView } from "./calendar.js";
 
 
 
@@ -59,6 +61,8 @@ function renderShell(currentChurch, churches) {
   const showGroups = can("read", "groups");
   const showLocations = can("read", "locations");
   const showMinistries = can("read", "ministries");
+  const showRotas = can("read", "service_role_assignments") || can("read", "service_roles");
+  const showCalendar = can("read", "calendar");
 
 
 
@@ -87,6 +91,8 @@ function renderShell(currentChurch, churches) {
           ${showEvents ? `<li><a href="#" data-view="events">Eventos</a></li>` : ""}
           ${showLocations ? `<li><a href="#" data-view="locations">Misiones</a></li>` : ""}
           ${showMinistries ? `<li><a href="#" data-view="ministries">Ministerios</a></li>` : ""}
+          ${showRotas ? `<li><a href="#" data-view="rotas">Roles mensuales</a></li>` : ""}
+          ${showCalendar ? `<li><a href="#" data-view="calendar">Calendario</a></li>` : ""}
           <hr align="center" width="20%">
           ${showUsers ? `<li><a href="#" data-view="users">Usuarios</a></li>` : ""}
           ${showPermissions ? `<li><a href="#" data-view="permissions">Permisos</a></li>` : ""}
@@ -144,6 +150,8 @@ function renderShell(currentChurch, churches) {
         <section data-view="groups" style="display:none"><h1>Cargando módulo...</h1></section>
         <section data-view="locations" style="display:none"><h1>Cargando módulo...</h1></section>
         <section data-view="ministries" style="display:none"><h1>Cargando módulo...</h1></section>
+        <section data-view="rotas" style="display:none"><h1>Cargando módulo...</h1></section>
+        <section data-view="calendar" style="display:none"><h1>Cargando módulo...</h1></section>
       </main>
     </div>
   `;
@@ -295,6 +303,22 @@ function renderShell(currentChurch, churches) {
             return;
           }
           initMinistriesView(church);
+        }
+
+        if (view === "rotas") {
+          if (!showRotas) {
+            s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
+            return;
+          }
+          initRotasView(church);
+        }
+
+        if (view === "calendar") {
+          if (!can("read", "calendar")) {
+            s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
+            return;
+          }
+          initCalendarView(church);
         }
 
 

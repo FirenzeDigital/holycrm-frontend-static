@@ -16,6 +16,9 @@ export const MODULES = [
   { key: "ministries", name: "ministries" },
   { key: "ministry_memberships", name: "ministry_memberships" },
   { key: "ministry_activities", name: "ministry_activities" },
+  { key: "service_roles", name: "service_roles" },
+  { key: "service_role_assignments", name: "service_role_assignments" },
+  { key: "calendar", name: "calendar" },
 ];
 
 // Default permissions (Option C baseline)
@@ -32,6 +35,9 @@ const DEFAULTS = {
     ministries:{ c: true,  r: true,  u: true,  d: true  },
     ministry_memberships:{ c: true,  r: true,  u: true,  d: true  },
     ministry_activities:{ c: true,  r: true,  u: true,  d: true  },
+    service_roles:{ c: true,  r: true,  u: true,  d: true  },
+    service_role_assignments:{ c: true,  r: true,  u: true,  d: true  },
+    calendar:{ c: true,  r: true,  u: true,  d: true  },
   },
   manager: {
     members:      { c: true,  r: true,  u: true,  d: true  },
