@@ -5,10 +5,26 @@ const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 export async function loadCalendarItems({ churchId, startDate, endDate }) {
   // startDate/endDate: "YYYY-MM-DD"
+  // PocketBase datetime strings usually look like: "2025-12-15 18:30:00.000Z"
+  const startDT = `${startDate} 00:00:00.000Z`;
+  const endDT = `${endDate} 23:59:59.999Z`;
+
   const [events, rotas, activities] = await Promise.all([
-    safeList("events", `church.id = "${churchId}" && start_date >= "${startDate}" && start_date <= "${endDate}"`, "start_date"),
-    safeList("service_role_assignments", `church.id = "${churchId}" && date >= "${startDate}" && date <= "${endDate}"`, "date"),
-    safeList("ministry_activities", `church.id = "${churchId}" && status = "active"`, "weekday,time"),
+    safeList(
+      "events",
+      `church.id = "${churchId}" && starts_at >= "${startDT}" && starts_at <= "${endDT}"`,
+      "starts_at"
+    ),
+    safeList(
+      "service_role_assignments",
+      `church.id = "${churchId}" && date >= "${startDate}" && date <= "${endDate}"`,
+      "date"
+    ),
+    safeList(
+      "ministry_activities",
+      `church.id = "${churchId}" && status = "active"`,
+      "weekday,time"
+    ),
   ]);
 
   const roleNameById = await loadLookupMap("service_roles", churchId, "name");
@@ -17,16 +33,13 @@ export async function loadCalendarItems({ churchId, startDate, endDate }) {
 
   const items = [];
 
-  // 1) Events (single instances)
+  // 1) Events
   for (const e of events) {
-    const date = toISODate(e.start_date);
+    const { date, time } = splitPbDateTime(e.starts_at);
     if (!date) continue;
 
-    const startTime = (e.start_time || "").trim();
-    const endTime = (e.end_time || "").trim();
-
-    const start = startTime ? `${date}T${startTime}` : `${date}T00:00`;
-    const end = endTime ? `${date}T${endTime}` : null;
+    const start = time ? `${date}T${time}` : `${date}T00:00`;
+    const end = e.ends_at ? pbDateTimeToLocalISO(e.ends_at) : null;
 
     items.push({
       id: `event:${e.id}`,
@@ -34,22 +47,25 @@ export async function loadCalendarItems({ churchId, startDate, endDate }) {
       title: e.title || "Evento",
       start,
       end,
-      allDay: !startTime,
+      allDay: !time,
       meta: {
         eventId: e.id,
-        location: e.location_text || "",
+        location: e.location || "",
         notes: e.notes || "",
+        status: e.status || "",
       },
     });
   }
 
-  // 2) Rotas (monthly roles assignments)
+  // 2) Rotas
   for (const r of rotas) {
     const date = toISODate(r.date);
     if (!date) continue;
 
     const roleName = roleNameById.get(String(r.service_role)) || "Rol";
-    const memberName = r.assigned_member ? (memberNameById.get(String(r.assigned_member)) || "") : "";
+    const memberName = r.assigned_member
+      ? memberNameById.get(String(r.assigned_member)) || ""
+      : "";
 
     items.push({
       id: `rota:${r.id}`,
@@ -67,7 +83,7 @@ export async function loadCalendarItems({ churchId, startDate, endDate }) {
     });
   }
 
-  // 3) Weekly ministry activities (expand into occurrences in the range)
+  // 3) Weekly ministry activities → expand occurrences in range
   const start = new Date(`${startDate}T00:00:00`);
   const end = new Date(`${endDate}T23:59:59`);
 
@@ -76,19 +92,18 @@ export async function loadCalendarItems({ churchId, startDate, endDate }) {
     const weekdayIndex = WEEKDAYS.indexOf(weekday);
     if (weekdayIndex < 0) continue;
 
-    const time = (a.time || "").trim();
+    const time = String(a.time || "").trim(); // "HH:MM"
     if (!time) continue;
 
     const duration = Number(a.duration_minutes || 0);
     const ministryName = ministryNameById.get(String(a.ministry)) || "Ministerio";
 
-    // generate occurrences
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       if (d.getDay() !== weekdayIndex) continue;
 
       const day = toYMD(d);
       const startDT = `${day}T${time}`;
-      const endDT = duration > 0 ? addMinutesISO(startDT, duration) : null;
+      const endDT = duration > 0 ? addMinutesLocalISO(startDT, duration) : null;
 
       items.push({
         id: `minact:${a.id}:${day}`,
@@ -107,7 +122,6 @@ export async function loadCalendarItems({ churchId, startDate, endDate }) {
     }
   }
 
-  // sort by start
   items.sort((x, y) => String(x.start).localeCompare(String(y.start)));
   return items;
 }
@@ -156,6 +170,22 @@ function toISODate(val) {
   return s.length >= 10 ? s.slice(0, 10) : "";
 }
 
+// PB datetime usually: "YYYY-MM-DD HH:MM:SS.sssZ"
+function splitPbDateTime(pbDT) {
+  if (!pbDT) return { date: "", time: "" };
+  const s = String(pbDT);
+  const date = s.slice(0, 10);
+  const time = s.length >= 16 ? s.slice(11, 16) : "";
+  // when it's "YYYY-MM-DDTHH:MM..." this still works because [11,16] hits HH:MM
+  return { date, time };
+}
+
+function pbDateTimeToLocalISO(pbDT) {
+  const { date, time } = splitPbDateTime(pbDT);
+  if (!date) return null;
+  return time ? `${date}T${time}` : `${date}T00:00`;
+}
+
 function toYMD(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -163,12 +193,16 @@ function toYMD(d) {
   return `${y}-${m}-${day}`;
 }
 
-function addMinutesISO(iso, minutes) {
-  try {
-    const dt = new Date(iso);
-    dt.setMinutes(dt.getMinutes() + minutes);
-    return dt.toISOString().slice(0, 16); // YYYY-MM-DDTHH:MM (UTC-ish) – good enough for now
-  } catch {
-    return null;
-  }
+function addMinutesLocalISO(isoLocal, minutes) {
+  // isoLocal: "YYYY-MM-DDTHH:MM" interpreted as local time
+  const [d, t] = isoLocal.split("T");
+  const [hh, mm] = t.split(":").map(Number);
+
+  let total = hh * 60 + mm + Number(minutes || 0);
+  if (total < 0) total = 0;
+
+  const newH = Math.floor(total / 60) % 24;
+  const newM = total % 60;
+
+  return `${d}T${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
 }
