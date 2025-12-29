@@ -678,10 +678,27 @@ function fromLocalDatetimeInput(localValue) {
 
 export async function openEventModalById(eventId) {
   try {
-    const event = await pb.collection("events").getOne(eventId);
-    openEventModal(event);
+  // Ensure the Events view (and its modal inputs) exists in DOM
+  const church = safeGetCurrentChurch();
+  if (church) {
+    // If the modal inputs are missing, the view hasn't been initialized yet
+    if (!document.getElementById("event-id") || !document.getElementById("event-title")) {
+      initEventsView(church);
+    }
+  }
+
+  const record = await pb.collection("events").getOne(eventId);
+  openEventModal({ mode: "edit", record });
   } catch (err) {
     console.error("Error abriendo evento desde calendario:", err);
     alert("No se pudo abrir el evento.");
+  }
+}
+
+function safeGetCurrentChurch() {
+  try {
+    return JSON.parse(localStorage.getItem("holycrm_current_church"));
+  } catch {
+    return null;
   }
 }

@@ -911,15 +911,33 @@ function escapeHtml(s) {
 }
 
 
-export async function openMinistryActivityModalById(activityId) {
+export async function openMinistryActivityModalById(activityId, ministryIdHint = "") {
   try {
-    const activity = await pb
-      .collection("ministry_activities")
-      .getOne(activityId);
+    const church = safeGetCurrentChurch();
+    if (church) {
+      if (!document.getElementById("activity-id") || !document.getElementById("activity-title")) {
+        initMinistriesView(church);
+      }
+    }
 
-    openActivityModal(activity);
-  } catch (err) {
-    console.error("Error abriendo actividad desde calendario:", err);
-    alert("No se pudo abrir la actividad.");
+    const record = await pb.collection("ministry_activities").getOne(activityId);
+    // openActivityModal requires a selected ministry id in dataset
+    const section = document.querySelector('section[data-view="ministries"]');
+    if (section) {
+      section.dataset.ministryActivitiesMinistryId = String(ministryIdHint || record.ministry || "");
+    }
+
+    openActivityModal({ mode: "edit", record });
+   } catch (err) {
+     console.error("Error abriendo actividad desde calendario:", err);
+     alert("No se pudo abrir la actividad.");
+   }
+ }
+
+function safeGetCurrentChurch() {
+  try {
+    return JSON.parse(localStorage.getItem("holycrm_current_church"));
+  } catch {
+    return null;
   }
 }

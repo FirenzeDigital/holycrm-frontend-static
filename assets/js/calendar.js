@@ -181,7 +181,10 @@ function renderItem(it) {
 
   if (it.source === "ministry_activity" && can("update", "ministry_activities")) {
     actions = `
-      <button class="btn-small" data-action="edit-activity" data-id="${it.meta.activityId}">
+      <button class="btn-small"
+        data-action="edit-activity"
+        data-id="${it.meta.activityId}"
+        data-ministry-id="${it.meta.ministryId || ""}">
         Editar
       </button>
     `;
@@ -227,7 +230,7 @@ document.addEventListener("click", (e) => {
   }
 
   if (action === "edit-activity") {
-    openMinistryActivityModalById(id);
+    openMinistryActivityModalById(id, btn.dataset.ministryId || "");
   }
 
   if (action === "edit-rota") {
