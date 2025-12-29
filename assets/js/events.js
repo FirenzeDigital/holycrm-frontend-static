@@ -672,3 +672,16 @@ function fromLocalDatetimeInput(localValue) {
   const d = new Date(localValue);
   return d.toISOString();
 }
+
+
+// --- EXPORTS PARA CALENDAR ---
+
+export async function openEventModalById(eventId) {
+  try {
+    const event = await pb.collection("events").getOne(eventId);
+    openEventModal(event);
+  } catch (err) {
+    console.error("Error abriendo evento desde calendario:", err);
+    alert("No se pudo abrir el evento.");
+  }
+}

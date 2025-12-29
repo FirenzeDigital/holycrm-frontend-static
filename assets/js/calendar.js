@@ -1,6 +1,9 @@
 // assets/js/calendar.js
 import { can } from "./permissions.js";
 import { loadCalendarItems } from "./calendar_data.js";
+import { openEventModalById } from "./events.js";
+import { openMinistryActivityModalById } from "./ministries.js";
+import { initRotasView } from "./rotas.js";
 
 let initialized = false;
 let currentChurchId = null;
@@ -163,27 +166,79 @@ function renderList() {
 }
 
 function renderItem(it) {
-  const time = it.allDay ? "Todo el día" : (String(it.start).slice(11, 16) || "");
+  const time = it.allDay ? "Todo el día" : it.start.slice(11, 16);
   const sourceLabel = sourceBadge(it.source);
-  const location = it.meta?.location ? `<div class="muted">📍 ${escapeHtml(it.meta.location)}</div>` : "";
-  const notes = it.meta?.notes ? `<div class="muted">${escapeHtml(it.meta.notes)}</div>` : "";
+
+  let actions = "";
+
+  if (it.source === "event" && can("update", "events")) {
+    actions = `
+      <button class="btn-small" data-action="edit-event" data-id="${it.meta.eventId}">
+        Editar
+      </button>
+    `;
+  }
+
+  if (it.source === "ministry_activity" && can("update", "ministry_activities")) {
+    actions = `
+      <button class="btn-small" data-action="edit-activity" data-id="${it.meta.activityId}">
+        Editar
+      </button>
+    `;
+  }
+
+  if (it.source === "rota" && can("update", "service_role_assignments")) {
+    actions = `
+      <button class="btn-small" data-action="edit-rota" data-id="${it.meta.assignmentId}">
+        Editar
+      </button>
+    `;
+  }
 
   return `
-    <div class="card" style="margin:0;padding:12px;">
-      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
-        <div style="min-width:0;">
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            ${sourceLabel}
-            <strong style="font-size:15px;">${escapeHtml(it.title || "")}</strong>
-          </div>
-          <div class="muted" style="margin-top:4px;">🕒 ${escapeHtml(time)}</div>
-          ${location}
-          ${notes}
+    <div class="calendar-item">
+      <div class="calendar-item-header">
+        <div>
+          ${sourceLabel}
+          <strong>${escapeHtml(it.title)}</strong>
         </div>
+        <div class="calendar-time">${time}</div>
+      </div>
+
+      ${it.meta.location ? `<div class="muted">📍 ${escapeHtml(it.meta.location)}</div>` : ""}
+      ${it.meta.notes ? `<div class="muted">${escapeHtml(it.meta.notes)}</div>` : ""}
+
+      <div class="calendar-actions">
+        ${actions}
       </div>
     </div>
   `;
 }
+
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-action]");
+  if (!btn) return;
+
+  const id = btn.dataset.id;
+  const action = btn.dataset.action;
+
+  if (action === "edit-event") {
+    openEventModalById(id);
+  }
+
+  if (action === "edit-activity") {
+    openMinistryActivityModalById(id);
+  }
+
+  if (action === "edit-rota") {
+    // Reusa el módulo de rotas
+    const church = JSON.parse(localStorage.getItem("holycrm_current_church"));
+    initRotasView(church);
+    setTimeout(() => {
+      alert("Abrí la asignación desde el módulo de Rotas.");
+    }, 200);
+  }
+});
 
 function sourceBadge(src) {
   const map = {

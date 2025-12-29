@@ -909,3 +909,17 @@ function escapeHtml(s) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
+
+
+export async function openMinistryActivityModalById(activityId) {
+  try {
+    const activity = await pb
+      .collection("ministry_activities")
+      .getOne(activityId);
+
+    openActivityModal(activity);
+  } catch (err) {
+    console.error("Error abriendo actividad desde calendario:", err);
+    alert("No se pudo abrir la actividad.");
+  }
+}
