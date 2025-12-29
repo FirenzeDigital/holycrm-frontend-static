@@ -928,10 +928,17 @@ export async function openMinistryActivityModalById(activityId, ministryIdHint =
     }
 
     openActivityModal({ mode: "edit", record });
-   } catch (err) {
-     console.error("Error abriendo actividad desde calendario:", err);
-     alert("No se pudo abrir la actividad.");
-   }
+    } catch (err) {
+      console.error("Error abriendo actividad desde calendario:", err);
+      alert("No se pudo abrir la actividad.");
+    }
+
+    // Force modal to be globally visible (not hidden with section display:none)
+    const modal = document.getElementById("activity-modal");
+    if (modal && modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+    if (modal) modal.style.display = "block";
  }
 
 function safeGetCurrentChurch() {

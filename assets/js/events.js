@@ -693,6 +693,13 @@ export async function openEventModalById(eventId) {
     console.error("Error abriendo evento desde calendario:", err);
     alert("No se pudo abrir el evento.");
   }
+
+  // Force modal to be globally visible (not hidden with section display:none)
+  const modal = document.getElementById("event-modal");
+  if (modal && modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
+  if (modal) modal.style.display = "block";
 }
 
 function safeGetCurrentChurch() {
