@@ -95,11 +95,30 @@ export function initEventsView(church) {
               <input type="datetime-local" id="event-ends" />
             </div>
 
+            // <div class="field">
+            //   <span>Lugar</span>
+            //   <input type="text" id="event-location" />
+            // </div>
+
             <div class="field">
-              <span>Lugar</span>
-              <input type="text" id="event-location" />
+              <span>Misión / Location</span>
+              <select id="event-location">
+                <option value="">(sin asignar)</option>
+              </select>
             </div>
 
+            <div class="field">
+              <span>Lugar (texto)</span>
+              <input id="event-location-place" type="text" placeholder="Ej: Salón principal" />
+            </div>
+
+            <div class="field">
+              <span>Ministerio</span>
+              <select id="event-ministry">
+                <option value="">(sin asignar)</option>
+              </select>
+            </div>
+            
             <div class="field">
               <span>Estado</span>
               <select id="event-status">
@@ -226,7 +245,51 @@ export function initEventsView(church) {
   ]).then(() => {
     renderEventsTable();
   });
+
+
+  let cachedEventLocations = [];
+  let cachedEventMinistries = [];
+
+  async function loadEventLookups(churchId) {
+    try {
+      cachedEventLocations = await pb.collection("locations").getFullList({
+        filter: `church.id = "${churchId}"`,
+        sort: "name",
+      });
+    } catch { cachedEventLocations = []; }
+
+    try {
+      cachedEventMinistries = await pb.collection("ministries").getFullList({
+        filter: `church.id = "${churchId}"`,
+        sort: "name",
+      });
+    } catch { cachedEventMinistries = []; }
+  }
+
+  function fillEventLookupSelects() {
+    const locSel = document.getElementById("event-location");
+    if (locSel) {
+      const current = locSel.value || "";
+      locSel.innerHTML = `<option value="">(sin asignar)</option>` + cachedEventLocations
+        .map(l => `<option value="${l.id}">${escapeHtml(l.name || "")}</option>`)
+        .join("");
+      locSel.value = current;
+    }
+
+    const minSel = document.getElementById("event-ministry");
+    if (minSel) {
+      const current = minSel.value || "";
+      minSel.innerHTML = `<option value="">(sin asignar)</option>` + cachedEventMinistries
+        .map(m => `<option value="${m.id}">${escapeHtml(m.name || "")}</option>`)
+        .join("");
+      minSel.value = current;
+    }
+  }
+
 }
+
+await loadEventLookups(church.id);
+fillEventLookupSelects();
 
 /* ---------------- Data loaders ---------------- */
 
@@ -508,6 +571,8 @@ function openEventModal({ mode, record }) {
   document.getElementById("event-ends").value = toLocalDatetimeInput(record?.ends_at) || "";
 
   document.getElementById("event-location").value = record?.location || "";
+  document.getElementById("event-location-place").value = record?.location_place || "";
+  document.getElementById("event-ministry").value = record?.ministry || "";
   document.getElementById("event-status").value = record?.status || "scheduled";
   document.getElementById("event-notes").value = record?.notes || "";
   document.getElementById("event-tags").value = record?.tags ? JSON.stringify(record.tags) : "";
@@ -532,10 +597,16 @@ async function saveEvent() {
   const title = document.getElementById("event-title").value.trim();
   const starts = document.getElementById("event-starts").value;
   const ends = document.getElementById("event-ends").value;
-  const location = document.getElementById("event-location").value.trim();
+  const location = document.getElementById("event-location").value || null;
+  const location_place = document.getElementById("event-location-place").value.trim();
+  const ministry = document.getElementById("event-ministry").value || null;  
   const status = document.getElementById("event-status").value;
   const notes = document.getElementById("event-notes").value.trim();
   const tagsRaw = document.getElementById("event-tags").value.trim();
+
+  payload.location = location;
+  payload.location_place = location_place;
+  payload.ministry = ministry;
 
   if (!title) return setText("event-form-error", "Título es obligatorio.");
   if (!starts) return setText("event-form-error", "Inicio es obligatorio.");

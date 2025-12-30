@@ -30,6 +30,7 @@ export async function loadCalendarItems({ churchId, startDate, endDate }) {
   const roleNameById = await loadLookupMap("service_roles", churchId, "name");
   const memberNameById = await loadMemberNameMap(churchId);
   const ministryNameById = await loadLookupMap("ministries", churchId, "name");
+  const locationNameById = await loadLookupMap("locations", churchId, "name");
 
   const items = [];
 
@@ -67,18 +68,24 @@ export async function loadCalendarItems({ churchId, startDate, endDate }) {
       ? memberNameById.get(String(r.assigned_member)) || ""
       : "";
 
+    const locRelName = e.location ? (locationNameById.get(String(e.location)) || "") : "";
+    const locText = (e.location_place || "").trim();
+    const displayLocation = locText || locRelName;
+
     items.push({
-      id: `rota:${r.id}`,
-      source: "rota",
-      title: `${roleName}${memberName ? ` — ${memberName}` : ""}`,
-      start: `${date}T09:00`,
-      end: null,
-      allDay: true,
+      id: `event:${e.id}`,
+      source: "event",
+      title: e.title || "Evento",
+      start,
+      end,
+      allDay: !time,
       meta: {
-        assignmentId: r.id,
-        roleId: r.service_role,
-        assignedMemberId: r.assigned_member || "",
-        notes: r.notes || "",
+        eventId: e.id,
+        location: displayLocation,
+        notes: e.notes || "",
+        status: e.status || "",
+        ministryId: e.ministry || "",
+        locationId: e.location || "",
       },
     });
   }
