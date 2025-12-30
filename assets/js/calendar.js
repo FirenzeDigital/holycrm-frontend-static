@@ -57,7 +57,7 @@ export async function initCalendarView(church) {
       </div>
     `;
 
-    const { start, end } = defaultRange7();
+    const { start, end } = defaultRange14();
     section.querySelector("#cal-start").value = start;
     section.querySelector("#cal-end").value = end;
 
@@ -76,6 +76,28 @@ export async function initCalendarView(church) {
     section.querySelector("#cal-end").addEventListener("change", async () => {
       await reload();
     });
+
+    // One delegated handler (only once)
+    section.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-action]");
+      if (!btn) return;
+
+      const id = btn.dataset.id || "";
+      const action = btn.dataset.action;
+
+      if (action === "edit-event") openEventModalById(id);
+
+      if (action === "edit-activity") {
+        openMinistryActivityModalById(id, btn.dataset.ministryId || "");
+      }
+
+      if (action === "edit-rota") {
+        const ch = safeGetCurrentChurch();
+        if (!ch) return;
+        initRotasView(ch);
+        setTimeout(() => alert("Editá la asignación desde el módulo de Rotas."), 150);
+      }
+    });
   }
 
   await reload();
@@ -92,18 +114,13 @@ async function reload() {
     setText("cal-error", "Seleccioná un rango válido.");
     return;
   }
-
   if (startDate > endDate) {
     setText("cal-error", "El rango es inválido (desde > hasta).");
     return;
   }
 
   try {
-    cachedItems = await loadCalendarItems({
-      churchId: currentChurchId,
-      startDate,
-      endDate,
-    });
+    cachedItems = await loadCalendarItems({ churchId: currentChurchId, startDate, endDate });
     renderList();
   } catch (err) {
     console.error("Calendar reload error:", err);
@@ -133,7 +150,6 @@ function renderList() {
     return;
   }
 
-  // group by day
   const byDay = new Map();
   for (const it of items) {
     const day = String(it.start).slice(0, 10);
@@ -146,18 +162,14 @@ function renderList() {
   listEl.innerHTML = days
     .map((day) => {
       const entries = byDay.get(day) || [];
-      const rows = entries
-        .map((it) => renderItem(it))
-        .join("");
-
       return `
         <div class="card" style="margin:12px 0;">
           <div style="display:flex;justify-content:space-between;align-items:center;">
-            <h3 style="margin:0;">${escapeHtml(formatDate(day))}</h3>
+            <h3 style="margin:0;">${escapeHtml(day)}</h3>
             <span class="muted">${entries.length} item(s)</span>
           </div>
           <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px;">
-            ${rows}
+            ${entries.map(renderItem).join("")}
           </div>
         </div>
       `;
@@ -166,100 +178,69 @@ function renderList() {
 }
 
 function renderItem(it) {
-  const time = it.allDay ? "Todo el día" : it.start.slice(11, 16);
+  const time = it.allDay ? "Todo el día" : String(it.start).slice(11, 16);
   const sourceLabel = sourceBadge(it.source);
 
   let actions = "";
 
   if (it.source === "event" && can("update", "events")) {
     actions = `
-      <button class="btn-small" data-action="edit-event" data-id="${it.meta.eventId}">
+      <button class="btn-secondary btn-small" data-action="edit-event" data-id="${it.meta?.eventId || ""}">
         Editar
       </button>
     `;
-  }
-
-  if (it.source === "ministry_activity" && can("update", "ministry_activities")) {
+  } else if (it.source === "ministry_activity" && can("update", "ministry_activities")) {
     actions = `
-      <button class="btn-small"
+      <button class="btn-secondary btn-small"
         data-action="edit-activity"
-        data-id="${it.meta.activityId}"
-        data-ministry-id="${it.meta.ministryId || ""}">
+        data-id="${it.meta?.activityId || ""}"
+        data-ministry-id="${it.meta?.ministryId || ""}">
+        Editar
+      </button>
+    `;
+  } else if (it.source === "rota" && can("update", "service_role_assignments")) {
+    actions = `
+      <button class="btn-secondary btn-small" data-action="edit-rota" data-id="${it.meta?.assignmentId || ""}">
         Editar
       </button>
     `;
   }
 
-  if (it.source === "rota" && can("update", "service_role_assignments")) {
-    actions = `
-      <button class="btn-small" data-action="edit-rota" data-id="${it.meta.assignmentId}">
-        Editar
-      </button>
-    `;
-  }
+  const location = it.meta?.location ? `<div class="muted">📍 ${escapeHtml(it.meta.location)}</div>` : "";
+  const notes = it.meta?.notes ? `<div class="muted">${escapeHtml(it.meta.notes)}</div>` : "";
 
   return `
-    <div class="calendar-item">
-      <div class="calendar-item-header">
-        <div>
-          ${sourceLabel}
-          <strong>${escapeHtml(it.title)}</strong>
+    <div class="card" style="margin:0;padding:12px;">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+        <div style="min-width:0;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            ${sourceLabel}
+            <strong style="font-size:15px;">${escapeHtml(it.title || "")}</strong>
+          </div>
+          <div class="muted" style="margin-top:4px;">🕒 ${escapeHtml(time)}</div>
+          ${location}
+          ${notes}
         </div>
-        <div class="calendar-time">${time}</div>
-      </div>
-
-      ${it.meta.location ? `<div class="muted">📍 ${escapeHtml(it.meta.location)}</div>` : ""}
-      ${it.meta.notes ? `<div class="muted">${escapeHtml(it.meta.notes)}</div>` : ""}
-
-      <div class="calendar-actions">
-        ${actions}
+        <div style="display:flex;gap:8px;align-items:center;">
+          ${actions}
+        </div>
       </div>
     </div>
   `;
 }
 
-document.addEventListener("click", (e) => {
-  const btn = e.target.closest("[data-action]");
-  if (!btn) return;
-
-  const id = btn.dataset.id;
-  const action = btn.dataset.action;
-
-  if (action === "edit-event") {
-    openEventModalById(id);
-  }
-
-  if (action === "edit-activity") {
-    openMinistryActivityModalById(id, btn.dataset.ministryId || "");
-  }
-
-  if (action === "edit-rota") {
-    // Reusa el módulo de rotas
-    const church = JSON.parse(localStorage.getItem("holycrm_current_church"));
-    initRotasView(church);
-    setTimeout(() => {
-      alert("Abrí la asignación desde el módulo de Rotas.");
-    }, 200);
-  }
-});
-
 function sourceBadge(src) {
-  const map = {
-    event: "Evento",
-    ministry_activity: "Ministerio",
-    rota: "Rota",
-  };
+  const map = { event: "Evento", ministry_activity: "Ministerio", rota: "Rota" };
   const label = map[src] || src;
   return `<span class="role-pill" style="font-size:12px;">${escapeHtml(label)}</span>`;
 }
 
-function defaultRange7() {
+function defaultRange14() {
   const d = new Date();
   const start = toYMD(d);
   const endD = new Date(d);
   endD.setDate(endD.getDate() + 14);
-  const end = toYMD(endD);
-  return { start, end };
+  return { start, end: toYMD(endD) };
 }
 
 function toYMD(d) {
@@ -267,11 +248,6 @@ function toYMD(d) {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
-}
-
-function formatDate(ymd) {
-  // simple
-  return ymd;
 }
 
 function setText(id, text) {
@@ -286,4 +262,12 @@ function escapeHtml(s) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function safeGetCurrentChurch() {
+  try {
+    return JSON.parse(localStorage.getItem("holycrm_current_church"));
+  } catch {
+    return null;
+  }
 }

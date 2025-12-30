@@ -270,18 +270,22 @@ export function initEventsView(church) {
     const locSel = document.getElementById("event-location");
     if (locSel) {
       const current = locSel.value || "";
-      locSel.innerHTML = `<option value="">(sin asignar)</option>` + cachedEventLocations
-        .map(l => `<option value="${l.id}">${escapeHtml(l.name || "")}</option>`)
-        .join("");
+      locSel.innerHTML =
+        `<option value="">(sin asignar)</option>` +
+        cachedEventLocations
+          .map((l) => `<option value="${l.id}">${escapeHtml(l.name || "")}</option>`)
+          .join("");
       locSel.value = current;
     }
 
     const minSel = document.getElementById("event-ministry");
     if (minSel) {
       const current = minSel.value || "";
-      minSel.innerHTML = `<option value="">(sin asignar)</option>` + cachedEventMinistries
-        .map(m => `<option value="${m.id}">${escapeHtml(m.name || "")}</option>`)
-        .join("");
+      minSel.innerHTML =
+        `<option value="">(sin asignar)</option>` +
+        cachedEventMinistries
+          .map((m) => `<option value="${m.id}">${escapeHtml(m.name || "")}</option>`)
+          .join("");
       minSel.value = current;
     }
   }
@@ -365,6 +369,7 @@ function renderEventsTable() {
     : cachedEvents.filter((ev) => {
         const title = String(ev.title || "").toLowerCase();
         const location = String(ev.location || "").toLowerCase();
+        const locationText = String(ev.location_place || "").toLowerCase();
         const status = String(ev.status || "").toLowerCase();
         return title.includes(q) || location.includes(q) || status.includes(q);
       });
@@ -382,7 +387,8 @@ function renderEventsTable() {
     tr.innerHTML = `
       <td data-label="Título">${escapeHtml(ev.title || "")}</td>
       <td data-label="Inicio">${escapeHtml(formatDateTime(ev.starts_at))}</td>
-      <td data-label="Lugar">${escapeHtml(ev.location || "")}</td>
+      <td data-label="Ubicacion">${escapeHtml(ev.location || "")}</td>
+      <td data-label="Lugar">${escapeHtml(ev.location_place || "")}</td>
       <td data-label="Estado">${escapeHtml(ev.status || "")}</td>
       <td data-label="" class="row-actions"></td>
     `;
