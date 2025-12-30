@@ -1,7 +1,7 @@
 // assets/js/auth.js
 // Simple PocketBase client wrapper shared by login and app.
 
-export const pb = new PocketBase("https://app.holycrm.app/backend/");
+export const pb = new PocketBase("https://pb-dev.holycrm.app/backend/");
 
 // Try to restore auth from localStorage on load.
 const saved = localStorage.getItem("pb_auth");

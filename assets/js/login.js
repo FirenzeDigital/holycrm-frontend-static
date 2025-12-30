@@ -29,7 +29,7 @@ emailForm.addEventListener("submit", async (e) => {
   emailForLogin = email;
 
   try {
-    const res = await fetch("https://app.holycrm.app/backend/api/churches/by-email", {
+    const res = await fetch("https://pb-dev.holycrm.app/backend/api/churches/by-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),

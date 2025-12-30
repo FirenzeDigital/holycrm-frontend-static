@@ -1,7 +1,7 @@
 // assets/js/permissions.js
 import { pb } from "./auth.js";
 
-const API_BASE = "https://app.holycrm.app/backend/";
+const API_BASE = "https://pb-dev.holycrm.app/backend/";
 
 // Modules known to the frontend (source of truth for now)
 export const MODULES = [
