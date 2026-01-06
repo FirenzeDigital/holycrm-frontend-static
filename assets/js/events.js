@@ -291,6 +291,9 @@ export async function initEventsView(church) {
   const title = document.getElementById("events-title");
   if (title) title.textContent = `Eventos en ${church.name}`;
 
+  await loadEventLookups(church.id);
+  fillEventLookupSelects();
+
   // load data
   Promise.all([
     loadEventsForChurch(church.id),
@@ -298,9 +301,6 @@ export async function initEventsView(church) {
   ]).then(() => {
     renderEventsTable();
   });
-
-  await loadEventLookups(church.id);
-  fillEventLookupSelects();
 
 }
 
@@ -576,7 +576,7 @@ function openEventModal({ mode, record }) {
   if (mode === "create" && !canCreate) return;
   if (mode === "edit" && !canUpdate) return;
 
-  fillEventLookupSelects()
+  fillEventLookupSelects();
   
   setText("event-form-error", "");
 
@@ -767,7 +767,7 @@ export async function openEventModalById(eventId) {
   if (church) {
     // If the modal inputs are missing, the view hasn't been initialized yet
     if (!document.getElementById("event-id") || !document.getElementById("event-title")) {
-      initEventsView(church);
+      await initEventsView(church);
     }
   }
 
