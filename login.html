@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <title>HolyCRM – Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="manifest" href="/holycrm-frontend-static/manifest.json">
+    <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="assets/css/styles.css" />
     <!-- PocketBase UMD (global PocketBase constructor) -->
     <script src="assets/js/pocketbase.umd.js"></script>
@@ -48,8 +48,8 @@
     <script>
         if (navigator.serviceWorker) {
           navigator.serviceWorker.register (
-            '/holycrm-frontend-static/service-worker.js',
-            {scope: '/holycrm-frontend-static/'}
+            '/service-worker.js',
+            {scope: '/'}
           )
         }
     </script>
