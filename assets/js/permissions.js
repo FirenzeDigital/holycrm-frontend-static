@@ -19,6 +19,8 @@ export const MODULES = [
   { key: "service_roles", name: "service_roles" },
   { key: "service_role_assignments", name: "service_role_assignments" },
   { key: "calendar", name: "calendar" },
+  { key: "finance", name: "finance" },
+  { key: "finance_transactions", name: "finance_transactions" },
 ];
 
 // Default permissions (Option C baseline)
@@ -38,6 +40,8 @@ const DEFAULTS = {
     service_roles:{ c: true,  r: true,  u: true,  d: true  },
     service_role_assignments:{ c: true,  r: true,  u: true,  d: true  },
     calendar:{ c: true,  r: true,  u: true,  d: true  },
+    finance:{ c: true,  r: true,  u: true,  d: true  },
+    finance_transactions:{ c: true,  r: true,  u: true,  d: true  },
   },
   manager: {
     members:      { c: true,  r: true,  u: true,  d: true  },

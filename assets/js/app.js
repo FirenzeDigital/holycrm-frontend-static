@@ -11,6 +11,7 @@ import { initLocationsView } from "./locations.js";
 import { initMinistriesView } from "./ministries.js";
 import { initRotasView } from "./rotas.js";
 import { initCalendarView } from "./calendar.js";
+import { initFinanceView } from "./finance.js";
 
 const root = document.getElementById("app");
 
@@ -89,6 +90,7 @@ function renderShellOnce() {
           <li data-nav="ministries"><a href="#" data-view="ministries">Ministerios</a></li>
           <li data-nav="rotas"><a href="#" data-view="rotas">Roles mensuales</a></li>
           <li data-nav="calendar"><a href="#" data-view="calendar">Calendario</a></li>
+          <li data-nav="finance"><a href="#" data-view="finance">Finanzas</a></li>
 
           <li data-nav="divider"><hr align="center" width="20%"></li>
 
@@ -140,6 +142,7 @@ function renderShellOnce() {
         <section data-view="ministries" style="display:none"><h1>Cargando módulo...</h1></section>
         <section data-view="rotas" style="display:none"><h1>Cargando módulo...</h1></section>
         <section data-view="calendar" style="display:none"><h1>Cargando módulo...</h1></section>
+        <section data-view="finance" style="display:none"><h1>Cargando módulo...</h1></section>
       </main>
     </div>
   `;
@@ -264,6 +267,7 @@ function applyChurchContextToShell() {
   const showMinistries = can("read", "ministries");
   const showRotas = can("read", "service_role_assignments") || can("read", "service_roles");
   const showCalendar = can("read", "calendar");
+  const showFinance = can("read", "finance_transactions");
 
   setNavVisible("members", showMembers);
   setNavVisible("groups", showGroups);
@@ -322,6 +326,7 @@ function canView(view, showRotasComputed) {
   if (view === "ministries") return can("read", "ministries");
   if (view === "rotas") return !!showRotasComputed;
   if (view === "calendar") return can("read", "calendar");
+  // if (view === "finance") return can("read", "finance");
   return false;
 }
 
@@ -356,6 +361,14 @@ function navigateTo(view) {
   if (view === "ministries") return initMinistriesView(church);
   if (view === "rotas") return initRotasView(church);
   if (view === "calendar") return initCalendarView(church);
+  // if (view === "finance") return initFinanceView(church);
+  if (view === "finance") {
+    if (!can("read", "finance_transactions")) {
+      s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
+      return;
+    }
+    initFinanceView(church);
+  }
 
   // dashboard: no-op
 }
