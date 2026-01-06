@@ -9,6 +9,7 @@ let cachedEvents = [];
 let cachedMembers = [];
 let cachedAttendanceByEvent = new Map(); // eventId -> Map(memberId -> attendanceRecord)
 
+
 // --- Event lookups (locations + ministries) ---
 let cachedEventLocations = [];
 let cachedEventMinistries = [];
@@ -81,598 +82,708 @@ export async function initEventsView(church) {
       <h1>Eventos</h1>
 
       <div class="card">
-        <div class="members-toolbar" style="gap:10px;flex-wrap:wrap;">
-          <div class="members-search" style="gap:10px;flex-wrap:wrap;">
-            <input id="events-search" type="text" placeholder="Buscar por título o lugar..." />
+        <div class="members-toolbar">
+          <div class="members-search">
+            <input id="events-search" type="text" placeholder="Buscar (título, lugar, estado)..." />
           </div>
+
           <div class="members-actions">
             <button id="events-reload" type="button">Recargar</button>
             ${canCreate ? `<button id="events-new" type="button">Nuevo evento</button>` : ""}
           </div>
         </div>
+
         <div id="events-error" class="error"></div>
         <div id="events-success" class="success"></div>
       </div>
 
       <div class="card">
-        <h2>Listado</h2>
-        <div style="overflow:auto;">
-          <table class="table">
+        <h2 id="events-title"></h2>
+        <div class="table-wrap">
+          <table class="users-table">
             <thead>
               <tr>
                 <th>Título</th>
                 <th>Inicio</th>
                 <th>Lugar</th>
                 <th>Estado</th>
-                <th style="width:1%"></th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="events-tbody">
-              <tr><td colspan="5" class="muted">Cargando...</td></tr>
+              <tr><td colspan="5">Cargando...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- EVENT MODAL -->
-      <div class="modal-overlay" id="event-modal" style="display:none;">
-        <div class="modal" style="max-width:720px;">
+      <!-- Event modal -->
+      <div id="event-modal" class="modal" style="display:none">
+        <div class="modal-backdrop" data-close="1"></div>
+        <div class="modal-card">
           <div class="modal-header">
             <h3 id="event-modal-title">Evento</h3>
-            <button class="icon-btn" id="event-modal-close" type="button">×</button>
+            <button type="button" class="modal-close" data-close="1">×</button>
           </div>
 
-          <div class="modal-body">
+          <form id="event-form" class="modal-body">
             <input type="hidden" id="event-id" />
 
-            <div class="form-grid">
-              <label class="field">
-                <span>Título</span>
-                <input id="event-title" type="text" />
-              </label>
-
-              <label class="field">
-                <span>Inicio</span>
-                <input id="event-starts-at" type="datetime-local" />
-              </label>
-
-              <label class="field">
-                <span>Fin</span>
-                <input id="event-ends-at" type="datetime-local" />
-              </label>
-
-              <div class="field">
-                <span>Misión / Location</span>
-                <select id="event-location">
-                  <option value="">(sin asignar)</option>
-                </select>
-              </div>
-
-              <label class="field">
-                <span>Lugar (texto)</span>
-                <input id="event-location-place" type="text" placeholder="Ej: Salón principal" />
-              </label>
-
-              <div class="field">
-                <span>Ministerio</span>
-                <select id="event-ministry">
-                  <option value="">(sin asignar)</option>
-                </select>
-              </div>
-
-              <label class="field">
-                <span>Estado</span>
-                <select id="event-status">
-                  <option value="scheduled">scheduled</option>
-                  <option value="cancelled">cancelled</option>
-                </select>
-              </label>
-
-              <label class="field" style="grid-column:1/-1;">
-                <span>Notas</span>
-                <textarea id="event-notes" rows="3"></textarea>
-              </label>
-
-              <label class="field" style="grid-column:1/-1;">
-                <span>Tags (JSON)</span>
-                <textarea id="event-tags" rows="2" placeholder='{"category":"general"}'></textarea>
-              </label>
+            <div class="field">
+              <span>Título</span>
+              <input type="text" id="event-title" required />
             </div>
-          </div>
 
-          <div class="modal-footer">
-            <button id="event-cancel" type="button" class="btn-secondary">Cancelar</button>
-            <button id="event-save" type="button">Guardar</button>
-          </div>
+            <div class="field">
+              <span>Inicio</span>
+              <input type="datetime-local" id="event-starts" required />
+            </div>
+
+            <div class="field">
+              <span>Fin</span>
+              <input type="datetime-local" id="event-ends" />
+            </div>
+
+            <!--
+            <div class="field">
+              <span>Lugar</span>
+              <input type="text" id="event-location" />
+            </div>
+            -->
+
+            <div class="field">
+              <span>Misión / Location</span>
+              <select id="event-location">
+                <option value="">(sin asignar)</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <span>Lugar (texto)</span>
+              <input id="event-location-place" type="text" placeholder="Ej: Salón principal" />
+            </div>
+
+            <div class="field">
+              <span>Ministerio</span>
+              <select id="event-ministry">
+                <option value="">(sin asignar)</option>
+              </select>
+            </div>
+            
+            <div class="field">
+              <span>Estado</span>
+              <select id="event-status">
+                <option value="scheduled">scheduled</option>
+                <option value="cancelled">cancelled</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <span>Notas</span>
+              <input type="text" id="event-notes" />
+            </div>
+
+            <div class="field">
+              <span>Tags (JSON)</span>
+              <input type="text" id="event-tags" placeholder='["domingo","jovenes"]' />
+            </div>
+
+            <div id="event-form-error" class="error"></div>
+            <div class="modal-footer">
+              <button type="button" data-close="1" class="btn-secondary">Cancelar</button>
+              <button type="submit">Guardar</button>
+            </div>
+          </form>
         </div>
       </div>
 
-      <!-- ATTENDANCE MODAL -->
-      <div class="modal-overlay" id="attendance-modal" style="display:none;">
-        <div class="modal" style="max-width:820px;">
+      <!-- Attendance modal -->
+      <div id="attendance-modal" class="modal" style="display:none">
+        <div class="modal-backdrop" data-close="1"></div>
+        <div class="modal-card">
           <div class="modal-header">
-            <h3>Asistencia</h3>
-            <button class="icon-btn" id="attendance-modal-close" type="button">×</button>
+            <h3 id="attendance-modal-title">Asistencia</h3>
+            <button type="button" class="modal-close" data-close="1">×</button>
           </div>
 
           <div class="modal-body">
-            <div class="members-toolbar" style="gap:10px;flex-wrap:wrap;">
+            <div class="members-toolbar" style="margin-bottom:10px">
+              <div class="members-search">
+                <input id="attendance-search" type="text" placeholder="Buscar persona..." />
+              </div>
               <div class="members-actions">
-                <button id="attendance-reload" type="button">Recargar</button>
+                <button id="attendance-reload" type="button" class="btn-secondary">Recargar</button>
               </div>
             </div>
 
             <div id="attendance-error" class="error"></div>
+            <div id="attendance-success" class="success"></div>
 
-            <div style="overflow:auto;">
-              <table class="table">
+            <div class="table-wrap">
+              <table class="users-table">
                 <thead>
                   <tr>
                     <th>Persona</th>
                     <th>Email</th>
                     <th>Estado</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody id="attendance-tbody">
-                  <tr><td colspan="3" class="muted">Cargando...</td></tr>
+                  <tr><td colspan="4">Cargando...</td></tr>
                 </tbody>
               </table>
             </div>
-          </div>
 
-          <div class="modal-footer">
-            <button id="attendance-close" type="button" class="btn-secondary">Cerrar</button>
+            <div class="modal-footer">
+              <button type="button" data-close="1" class="btn-secondary">Cerrar</button>
+            </div>
           </div>
         </div>
       </div>
     `;
 
-    // Ensure lookups exist for selects (locations + ministries)
-    await loadEventLookups(currentChurchId);
-    fillEventLookupSelects();
 
-    // Move modals to body so they don't get hidden by section display:none
-    const eventModal = document.getElementById("event-modal");
-    if (eventModal && eventModal.parentElement !== document.body) document.body.appendChild(eventModal);
+    section.dataset.eventsCanCreate = canCreate ? "1" : "0";
+    section.dataset.eventsCanUpdate = canUpdate ? "1" : "0";
+    section.dataset.eventsCanDelete = canDelete ? "1" : "0";
 
-    const attendanceModal = document.getElementById("attendance-modal");
-    if (attendanceModal && attendanceModal.parentElement !== document.body) document.body.appendChild(attendanceModal);
-
-    // UI handlers
     section.querySelector("#events-reload").addEventListener("click", async () => {
       await loadEventsForChurch(currentChurchId);
       renderEventsTable();
     });
 
-    section.querySelector("#events-search").addEventListener("input", () => {
-      renderEventsTable();
-    });
+    section.querySelector("#events-search").addEventListener("input", () => renderEventsTable());
 
-    const newBtn = section.querySelector("#events-new");
-    if (newBtn) {
-      newBtn.addEventListener("click", () => openEventModal({ mode: "create", record: null }));
+    if (canCreate) {
+      section.querySelector("#events-new").addEventListener("click", () => openEventModal({ mode: "create" }));
     }
 
-    document.getElementById("event-modal-close").addEventListener("click", closeEventModal);
-    document.getElementById("event-cancel").addEventListener("click", closeEventModal);
-    document.getElementById("event-save").addEventListener("click", saveEventFromModal);
+    // modal close handlers
+    section.querySelector("#event-modal").addEventListener("click", (e) => {
+      if (e.target?.dataset?.close === "1") closeEventModal();
+    });
 
-    document.getElementById("attendance-modal-close").addEventListener("click", closeAttendanceModal);
-    document.getElementById("attendance-close").addEventListener("click", closeAttendanceModal);
-    document.getElementById("attendance-reload").addEventListener("click", async () => {
-      const eventId = document.getElementById("attendance-modal").dataset.eventId || "";
+    section.querySelector("#attendance-modal").addEventListener("click", (e) => {
+      if (e.target?.dataset?.close === "1") closeAttendanceModal();
+    });
+
+    section.querySelector("#event-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      await saveEvent();
+    });
+
+    section.querySelector("#attendance-search").addEventListener("input", () => {
+      const eventId = section.dataset.attendanceEventId || "";
+      if (eventId) renderAttendanceTable(eventId);
+    });
+
+    section.querySelector("#attendance-reload").addEventListener("click", async () => {
+      const eventId = section.dataset.attendanceEventId || "";
       if (!eventId) return;
-      await loadAttendanceForEvent(eventId);
+      await loadAttendance(eventId);
       renderAttendanceTable(eventId);
     });
+    
+  }
 
-    // initial load
-    await loadMembersForChurch(currentChurchId);
-    await loadEventsForChurch(currentChurchId);
+  // update title
+  const title = document.getElementById("events-title");
+  if (title) title.textContent = `Eventos en ${church.name}`;
+
+  // load data
+  Promise.all([
+    loadEventsForChurch(church.id),
+    loadMembersForChurch(church.id),
+  ]).then(() => {
     renderEventsTable();
-  } else {
-    // church changed (or re-entered view) -> refresh lookups and data
-    await loadEventLookups(currentChurchId);
-    fillEventLookupSelects();
-    await loadMembersForChurch(currentChurchId);
-    await loadEventsForChurch(currentChurchId);
-    renderEventsTable();
-  }
+  });
 
-  /* ---------- render helpers ---------- */
+  await loadEventLookups(church.id);
+  fillEventLookupSelects();
 
-  function renderEventsTable() {
-    const tbody = document.getElementById("events-tbody");
-    if (!tbody) return;
+}
 
-    const q = (document.getElementById("events-search")?.value || "").trim().toLowerCase();
 
-    const list = !q
-      ? cachedEvents
-      : cachedEvents.filter((ev) => {
-          const t = String(ev.title || "").toLowerCase();
-          const lp = String(ev.location_place || "").toLowerCase();
-          return t.includes(q) || lp.includes(q);
-        });
+/* ---------------- Data loaders ---------------- */
 
-    if (!list.length) {
-      tbody.innerHTML = `<tr><td colspan="5" class="muted">No hay eventos.</td></tr>`;
-      return;
-    }
+async function loadEventsForChurch(churchId) {
+  setText("events-error", "");
+  setText("events-success", "");
+  setTableLoading("events-tbody", 5);
 
-    tbody.innerHTML = list
-      .map((ev) => {
-        const starts = formatDateTime(ev.starts_at);
-        const place = ev.location_place || "";
-        const status = (ev.status && typeof ev.status === "string") ? ev.status : (ev.status?.value || ev.status || "");
-        return `
-          <tr>
-            <td>${escapeHtml(ev.title || "")}</td>
-            <td>${escapeHtml(starts)}</td>
-            <td>${escapeHtml(place)}</td>
-            <td>${escapeHtml(status || "")}</td>
-            <td style="white-space:nowrap;text-align:right;">
-              ${canUpdate ? `<button class="btn-secondary btn-small" data-action="edit" data-id="${ev.id}">Editar</button>` : ""}
-              <button class="btn-secondary btn-small" data-action="attendance" data-id="${ev.id}">Asistencia</button>
-              ${canDelete ? `<button class="btn-danger btn-small" data-action="delete" data-id="${ev.id}">Borrar</button>` : ""}
-            </td>
-          </tr>
-        `;
-      })
-      .join("");
-
-    tbody.querySelectorAll("button[data-action]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const id = btn.dataset.id;
-        const action = btn.dataset.action;
-
-        if (action === "edit") {
-          const record = await pb.collection("events").getOne(id);
-          openEventModal({ mode: "edit", record });
-        }
-
-        if (action === "attendance") {
-          await openAttendanceModal(id);
-        }
-
-        if (action === "delete") {
-          if (!confirm("¿Borrar este evento?")) return;
-          try {
-            await pb.collection("events").delete(id);
-            await loadEventsForChurch(currentChurchId);
-            renderEventsTable();
-          } catch (err) {
-            console.error(err);
-            setText("events-error", "No se pudo borrar el evento.");
-          }
-        }
-      });
+  try {
+    cachedEvents = await pb.collection("events").getFullList({
+      filter: `church.id = "${churchId}"`,
+      sort: "-starts_at",
     });
-  }
-
-  function openEventModal({ mode, record }) {
-    const modal = document.getElementById("event-modal");
-    if (!modal) return;
-
-    // make sure selects are filled
-    fillEventLookupSelects();
-
-    document.getElementById("event-modal-title").textContent =
-      mode === "edit" ? "Editar evento" : "Nuevo evento";
-
-    document.getElementById("event-id").value = record?.id || "";
-    document.getElementById("event-title").value = record?.title || "";
-    document.getElementById("event-starts-at").value = toDatetimeLocal(record?.starts_at || "");
-    document.getElementById("event-ends-at").value = toDatetimeLocal(record?.ends_at || "");
-    document.getElementById("event-location").value = record?.location || "";
-    document.getElementById("event-location-place").value = record?.location_place || "";
-    document.getElementById("event-ministry").value = record?.ministry || "";
-    document.getElementById("event-status").value = coerceStatus(record?.status);
-    document.getElementById("event-notes").value = record?.notes || "";
-    document.getElementById("event-tags").value =
-      record?.tags ? safeJsonStringify(record.tags) : "";
-
-    modal.style.display = "block";
-    document.body.classList.add("modal-open");
-  }
-
-  function closeEventModal() {
-    const modal = document.getElementById("event-modal");
-    if (!modal) return;
-    modal.style.display = "none";
-    document.body.classList.remove("modal-open");
-  }
-
-  async function saveEventFromModal() {
-    setText("events-error", "");
-    setText("events-success", "");
-
-    const id = document.getElementById("event-id").value || "";
-    const title = document.getElementById("event-title").value.trim();
-    const starts_at = fromDatetimeLocal(document.getElementById("event-starts-at").value);
-    const ends_at = fromDatetimeLocal(document.getElementById("event-ends-at").value);
-    const location = document.getElementById("event-location").value || null;
-    const location_place = document.getElementById("event-location-place").value.trim();
-    const ministry = document.getElementById("event-ministry").value || null;
-    const status = document.getElementById("event-status").value || "scheduled";
-    const notes = document.getElementById("event-notes").value || "";
-    const tagsRaw = document.getElementById("event-tags").value.trim();
-
-    if (!title) {
-      setText("events-error", "El título es obligatorio.");
-      return;
-    }
-    if (!starts_at) {
-      setText("events-error", "La fecha/hora de inicio es obligatoria.");
-      return;
-    }
-
-    let tags = null;
-    if (tagsRaw) {
-      try {
-        tags = JSON.parse(tagsRaw);
-      } catch {
-        setText("events-error", "Tags JSON inválido.");
-        return;
-      }
-    }
-
-    const payload = {
-      church: currentChurchId,
-      title,
-      starts_at,
-      ends_at: ends_at || null,
-      location,
-      location_place,
-      ministry,
-      status,
-      notes,
-      tags,
-    };
-
-    try {
-      if (id) {
-        await pb.collection("events").update(id, payload);
-      } else {
-        await pb.collection("events").create(payload);
-      }
-
-      closeEventModal();
-      await loadEventsForChurch(currentChurchId);
-      renderEventsTable();
-      setText("events-success", "Guardado.");
-    } catch (err) {
-      console.error(err);
-      setText("events-error", "No se pudo guardar el evento.");
-    }
-  }
-
-  async function openAttendanceModal(eventId) {
-    const modal = document.getElementById("attendance-modal");
-    if (!modal) return;
-
-    modal.dataset.eventId = eventId;
-    modal.style.display = "block";
-    document.body.classList.add("modal-open");
-
-    await loadAttendanceForEvent(eventId);
-    renderAttendanceTable(eventId);
-  }
-
-  function closeAttendanceModal() {
-    const modal = document.getElementById("attendance-modal");
-    if (!modal) return;
-    modal.style.display = "none";
-    modal.dataset.eventId = "";
-    document.body.classList.remove("modal-open");
-  }
-
-  function renderAttendanceTable(eventId) {
-    const tbody = document.getElementById("attendance-tbody");
-    if (!tbody) return;
-
-    const attMap = cachedAttendanceByEvent.get(eventId) || new Map();
-
-    if (!cachedMembers.length) {
-      tbody.innerHTML = `<tr><td colspan="3" class="muted">No hay miembros.</td></tr>`;
-      return;
-    }
-
-    tbody.innerHTML = cachedMembers
-      .map((m) => {
-        const name = `${m.first_name || ""} ${m.last_name || ""}`.trim();
-        const email = m.email || "";
-        const att = attMap.get(m.id);
-        const state = att?.status || "unknown";
-
-        const canMark = can("update", "event_attendance");
-
-        return `
-          <tr>
-            <td>${escapeHtml(name)}</td>
-            <td>${escapeHtml(email)}</td>
-            <td>
-              ${
-                canMark
-                  ? `<select data-att="status" data-member="${m.id}">
-                      <option value="unknown" ${state === "unknown" ? "selected" : ""}>unknown</option>
-                      <option value="present" ${state === "present" ? "selected" : ""}>present</option>
-                      <option value="absent" ${state === "absent" ? "selected" : ""}>absent</option>
-                    </select>`
-                  : `<span class="muted">${escapeHtml(state)}</span>`
-              }
-            </td>
-          </tr>
-        `;
-      })
-      .join("");
-
-    tbody.querySelectorAll('select[data-att="status"]').forEach((sel) => {
-      sel.addEventListener("change", async () => {
-        const memberId = sel.dataset.member;
-        const status = sel.value;
-
-        try {
-          await upsertAttendance(eventId, memberId, status);
-          await loadAttendanceForEvent(eventId);
-        } catch (err) {
-          console.error(err);
-          setText("attendance-error", "No se pudo guardar asistencia.");
-        }
-      });
-    });
-  }
-
-  /* ---------- data ---------- */
-
-  async function loadEventsForChurch(churchId) {
-    try {
-      cachedEvents = await pb.collection("events").getFullList({
-        filter: `church.id = "${churchId}"`,
-        sort: "-starts_at",
-      });
-    } catch (err) {
-      console.error(err);
-      cachedEvents = [];
-    }
-  }
-
-  async function loadMembersForChurch(churchId) {
-    try {
-      cachedMembers = await pb.collection("members").getFullList({
-        filter: `church.id = "${churchId}"`,
-        sort: "last_name,first_name",
-      });
-    } catch (err) {
-      console.error(err);
-      cachedMembers = [];
-    }
-  }
-
-  async function loadAttendanceForEvent(eventId) {
-    try {
-      const rows = await pb.collection("event_attendance").getFullList({
-        filter: `event.id = "${eventId}"`,
-        sort: "created",
-      });
-      const map = new Map();
-      for (const r of rows) map.set(r.member, r);
-      cachedAttendanceByEvent.set(eventId, map);
-    } catch (err) {
-      console.error(err);
-      cachedAttendanceByEvent.set(eventId, new Map());
-    }
-  }
-
-  async function upsertAttendance(eventId, memberId, status) {
-    const existingMap = cachedAttendanceByEvent.get(eventId) || new Map();
-    const existing = existingMap.get(memberId);
-
-    if (existing?.id) {
-      await pb.collection("event_attendance").update(existing.id, { status });
-      return;
-    }
-
-    await pb.collection("event_attendance").create({
-      church: currentChurchId,
-      event: eventId,
-      member: memberId,
-      status,
-    });
-  }
-
-  /* ---------- utils ---------- */
-
-  function setText(id, text) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = text || "";
-  }
-
-  function formatDateTime(pbDT) {
-    if (!pbDT) return "";
-    const s = String(pbDT);
-    const date = s.slice(0, 10);
-    const time = s.length >= 16 ? s.slice(11, 16) : "";
-    return time ? `${date} ${time}` : date;
-  }
-
-  function toDatetimeLocal(pbDT) {
-    if (!pbDT) return "";
-    const s = String(pbDT);
-    const date = s.slice(0, 10);
-    const time = s.length >= 16 ? s.slice(11, 16) : "00:00";
-    return `${date}T${time}`;
-  }
-
-  function fromDatetimeLocal(localVal) {
-    if (!localVal) return "";
-    const [d, t] = localVal.split("T");
-    if (!d || !t) return "";
-    return `${d} ${t}:00.000Z`;
-  }
-
-  function coerceStatus(status) {
-    if (!status) return "scheduled";
-    if (typeof status === "string") return status;
-    if (typeof status === "object" && status.value) return String(status.value);
-    return "scheduled";
-  }
-
-  function safeJsonStringify(obj) {
-    try {
-      return JSON.stringify(obj);
-    } catch {
-      return "";
-    }
-  }
-
-  function escapeHtml(s) {
-    return String(s || "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+  } catch (err) {
+    console.error("Error cargando events:", err);
+    cachedEvents = [];
+    setText("events-error", humanizePbError(err) || "Error cargando eventos.");
   }
 }
 
-// --- EXPORTS PARA CALENDAR ---
-export async function openEventModalById(eventId) {
+async function loadMembersForChurch(churchId) {
   try {
-    const church = safeGetCurrentChurch();
-    if (church) {
-      // ensure view exists (creates DOM inputs)
-      if (!document.getElementById("event-id") || !document.getElementById("event-title")) {
-        await initEventsView(church);
-      }
+    cachedMembers = await pb.collection("members").getFullList({
+      filter: `church.id = "${churchId}"`,
+      sort: "last_name,first_name",
+    });
+  } catch (err) {
+    console.error("Error cargando members (attendance):", err);
+    cachedMembers = [];
+  }
+}
+
+async function loadAttendance(eventId) {
+  setText("attendance-error", "");
+  setText("attendance-success", "");
+  setTableLoading("attendance-tbody", 4);
+
+  try {
+    const records = await pb.collection("event_attendance").getFullList({
+      filter: `church.id = "${currentChurchId}" && event.id = "${eventId}"`,
+      sort: "created",
+    });
+
+    const map = new Map();
+    for (const r of records) {
+      const memberId = r.member;
+      if (memberId) map.set(String(memberId), r);
+    }
+    cachedAttendanceByEvent.set(eventId, map);
+  } catch (err) {
+    console.error("Error cargando attendance:", err);
+    cachedAttendanceByEvent.set(eventId, new Map());
+    setText("attendance-error", humanizePbError(err) || "Error cargando asistencia.");
+  }
+}
+
+/* ---------------- Render: Events ---------------- */
+
+function renderEventsTable() {
+  const tbody = document.getElementById("events-tbody");
+  const section = document.querySelector('section[data-view="events"]');
+  if (!tbody || !section) return;
+
+  const canUpdate = section.dataset.eventsCanUpdate === "1";
+  const canDelete = section.dataset.eventsCanDelete === "1";
+  const canReadAttendance = can("read", "event_attendance") || can("read", "events"); // pragmatic
+  const canWriteAttendance = can("update", "event_attendance") || can("create", "event_attendance");
+
+  const q = (document.getElementById("events-search")?.value || "").trim().toLowerCase();
+
+  const filtered = !q
+    ? cachedEvents
+    : cachedEvents.filter((ev) => {
+        const title = String(ev.title || "").toLowerCase();
+        const locationText = String(ev.location_place || "").toLowerCase();
+        const status = String(ev.status || "").toLowerCase();
+        return title.includes(q) || locationText.includes(q) || status.includes(q);
+      });
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="5">No hay eventos.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = "";
+
+  for (const ev of filtered) {
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td data-label="Título">${escapeHtml(ev.title || "")}</td>
+      <td data-label="Inicio">${escapeHtml(formatDateTime(ev.starts_at))}</td>
+      <td data-label="Lugar">${escapeHtml(ev.location_place || "")}</td>
+      <td data-label="Estado">${escapeHtml(ev.status || "")}</td>
+      <td data-label="" class="row-actions"></td>
+    `;
+
+    const actionsTd = tr.querySelector(".row-actions");
+
+    if (canReadAttendance) {
+      const attBtn = document.createElement("button");
+      attBtn.type = "button";
+      attBtn.textContent = "Asistencia";
+      attBtn.className = "btn-secondary";
+      attBtn.addEventListener("click", async () => {
+        await openAttendanceModal(ev);
+      });
+      actionsTd.appendChild(attBtn);
     }
 
-    const record = await pb.collection("events").getOne(eventId);
+    if (canUpdate) {
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.textContent = "Editar";
+      editBtn.addEventListener("click", () => openEventModal({ mode: "edit", record: ev }));
+      actionsTd.appendChild(editBtn);
+    }
 
-    // open modal (inputs now exist)
-    const modal = document.getElementById("event-modal");
-    if (modal && modal.parentElement !== document.body) document.body.appendChild(modal);
-    if (modal) modal.style.display = "block";
+    if (canDelete) {
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.textContent = "Eliminar";
+      delBtn.className = "danger-btn";
+      delBtn.addEventListener("click", async () => {
+        const ok = confirm(`¿Eliminar evento "${ev.title || ""}"?`);
+        if (!ok) return;
+        await deleteEvent(ev.id);
+      });
+      actionsTd.appendChild(delBtn);
+    }
 
-    // reuse internal openEventModal by simulating "edit" click
-    // simplest: call init and then click edit in table isn't ideal; so we populate directly:
-    document.getElementById("event-id").value = record?.id || "";
-    document.getElementById("event-title").value = record?.title || "";
-    document.getElementById("event-starts-at").value = record?.starts_at ? record.starts_at.slice(0, 16).replace(" ", "T") : "";
-    document.getElementById("event-ends-at").value = record?.ends_at ? record.ends_at.slice(0, 16).replace(" ", "T") : "";
-    document.getElementById("event-location").value = record?.location || "";
-    document.getElementById("event-location-place").value = record?.location_place || "";
-    document.getElementById("event-ministry").value = record?.ministry || "";
-    document.getElementById("event-status").value = (typeof record?.status === "string" ? record.status : (record?.status?.value || "scheduled"));
-    document.getElementById("event-notes").value = record?.notes || "";
-    document.getElementById("event-tags").value = record?.tags ? JSON.stringify(record.tags) : "";
+    // Attendance write hint (not required, but helps UX)
+    if (!canWriteAttendance && canReadAttendance) {
+      // no-op
+    }
 
-    document.getElementById("event-modal-title").textContent = "Editar evento";
-    document.body.classList.add("modal-open");
+    tbody.appendChild(tr);
+  }
+}
+
+/* ---------------- Render: Attendance ---------------- */
+
+async function openAttendanceModal(eventRecord) {
+  const section = document.querySelector('section[data-view="events"]');
+  if (!section) return;
+
+  section.dataset.attendanceEventId = eventRecord.id;
+
+  setText("attendance-modal-title", `Asistencia — ${eventRecord.title || ""}`);
+  document.getElementById("attendance-modal").style.display = "block";
+
+  // Ensure members loaded
+  if (!cachedMembers.length) await loadMembersForChurch(currentChurchId);
+
+  await loadAttendance(eventRecord.id);
+  renderAttendanceTable(eventRecord.id);
+}
+
+function closeAttendanceModal() {
+  const section = document.querySelector('section[data-view="events"]');
+  if (section) section.dataset.attendanceEventId = "";
+  const modal = document.getElementById("attendance-modal");
+  if (modal) modal.style.display = "none";
+}
+
+function renderAttendanceTable(eventId) {
+  const tbody = document.getElementById("attendance-tbody");
+  const section = document.querySelector('section[data-view="events"]');
+  if (!tbody || !section) return;
+
+  const canWriteAttendance = can("update", "event_attendance") || can("create", "event_attendance");
+  const q = (document.getElementById("attendance-search")?.value || "").trim().toLowerCase();
+
+  const attMap = cachedAttendanceByEvent.get(eventId) || new Map();
+
+  const members = !q
+    ? cachedMembers
+    : cachedMembers.filter((m) => {
+        const name = `${m.first_name || ""} ${m.last_name || ""}`.trim().toLowerCase();
+        const email = String(m.email || "").toLowerCase();
+        return name.includes(q) || email.includes(q);
+      });
+
+  if (!members.length) {
+    tbody.innerHTML = `<tr><td colspan="4">No hay personas para mostrar.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = "";
+
+  for (const m of members) {
+    const tr = document.createElement("tr");
+
+    const name = `${m.first_name || ""} ${m.last_name || ""}`.trim();
+    const email = m.email || "";
+
+    const att = attMap.get(String(m.id));
+    const status = att?.status || "unknown";
+
+    tr.innerHTML = `
+      <td data-label="Persona">${escapeHtml(name)}</td>
+      <td data-label="Email">${escapeHtml(email)}</td>
+      <td data-label="Estado">${escapeHtml(status)}</td>
+      <td data-label="" class="row-actions"></td>
+    `;
+
+    const actionsTd = tr.querySelector(".row-actions");
+
+    const mkBtn = (label, nextStatus) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = label;
+      b.className = "btn-secondary";
+      b.disabled = !canWriteAttendance;
+      b.addEventListener("click", async () => {
+        await upsertAttendance(eventId, m.id, nextStatus);
+        renderAttendanceTable(eventId);
+      });
+      return b;
+    };
+
+    actionsTd.appendChild(mkBtn("Presente", "present"));
+    actionsTd.appendChild(mkBtn("Ausente", "absent"));
+    actionsTd.appendChild(mkBtn("N/A", "unknown"));
+
+    tbody.appendChild(tr);
+  }
+}
+
+async function upsertAttendance(eventId, memberId, status) {
+  const canWrite = can("update", "event_attendance") || can("create", "event_attendance");
+  if (!canWrite) return;
+
+  setText("attendance-error", "");
+  setText("attendance-success", "");
+
+  const map = cachedAttendanceByEvent.get(eventId) || new Map();
+  const existing = map.get(String(memberId));
+
+  try {
+    if (existing) {
+      const updated = await pb.collection("event_attendance").update(existing.id, { status });
+      map.set(String(memberId), updated);
+    } else {
+      const created = await pb.collection("event_attendance").create({
+        church: currentChurchId,
+        event: eventId,
+        member: memberId,
+        status,
+      });
+      map.set(String(memberId), created);
+    }
+    cachedAttendanceByEvent.set(eventId, map);
+    setText("attendance-success", "Asistencia actualizada.");
+  } catch (err) {
+    console.error("Error upsert attendance:", err);
+    setText("attendance-error", humanizePbError(err) || "Error guardando asistencia.");
+  }
+}
+
+/* ---------------- Event CRUD ---------------- */
+
+function openEventModal({ mode, record }) {
+  const section = document.querySelector('section[data-view="events"]');
+  if (!section) return;
+
+  const canCreate = section.dataset.eventsCanCreate === "1";
+  const canUpdate = section.dataset.eventsCanUpdate === "1";
+
+  if (mode === "create" && !canCreate) return;
+  if (mode === "edit" && !canUpdate) return;
+
+  fillEventLookupSelects()
+  
+  setText("event-form-error", "");
+
+  document.getElementById("event-id").value = record?.id || "";
+  document.getElementById("event-title").value = record?.title || "";
+
+  document.getElementById("event-starts").value = toLocalDatetimeInput(record?.starts_at) || "";
+  document.getElementById("event-ends").value = toLocalDatetimeInput(record?.ends_at) || "";
+
+  document.getElementById("event-location").value = record?.location || "";
+  document.getElementById("event-location-place").value = record?.location_place || "";
+  document.getElementById("event-ministry").value = record?.ministry || "";
+  document.getElementById("event-status").value = record?.status || "scheduled";
+  document.getElementById("event-notes").value = record?.notes || "";
+  document.getElementById("event-tags").value = record?.tags ? JSON.stringify(record.tags) : "";
+
+  document.getElementById("event-modal-title").textContent =
+    mode === "create" ? "Nuevo evento" : "Editar evento";
+
+  document.getElementById("event-modal").style.display = "block";
+}
+
+function closeEventModal() {
+  const modal = document.getElementById("event-modal");
+  if (modal) modal.style.display = "none";
+}
+
+async function saveEvent() {
+  setText("event-form-error", "");
+  setText("events-error", "");
+  setText("events-success", "");
+
+  const id = document.getElementById("event-id").value.trim();
+  const title = document.getElementById("event-title").value.trim();
+  const starts = document.getElementById("event-starts").value;
+  const ends = document.getElementById("event-ends").value;
+
+  const location = document.getElementById("event-location").value || null; // relation id
+  const location_place = document.getElementById("event-location-place").value.trim();
+  const ministry = document.getElementById("event-ministry").value || null; // relation id
+
+  const status = document.getElementById("event-status").value;
+  const notes = document.getElementById("event-notes").value.trim();
+  const tagsRaw = document.getElementById("event-tags").value.trim();
+
+  if (!title) return setText("event-form-error", "Título es obligatorio.");
+  if (!starts) return setText("event-form-error", "Inicio es obligatorio.");
+
+  let tags = null;
+  if (tagsRaw) {
+    try {
+      tags = JSON.parse(tagsRaw);
+    } catch {
+      return setText("event-form-error", 'Tags debe ser JSON válido (ej: ["a","b"]).');
+    }
+  }
+
+  const payload = {
+    title,
+    starts_at: fromLocalDatetimeInput(starts),
+    ends_at: ends ? fromLocalDatetimeInput(ends) : null,
+    location,          // relation
+    location_place,    // text
+    ministry,          // relation
+    status,
+    notes,
+    tags,
+  };
+
+  try {
+    if (!id) {
+      await pb.collection("events").create({
+        church: currentChurchId,
+        ...payload,
+      });
+      setText("events-success", "Evento creado.");
+    } else {
+      await pb.collection("events").update(id, payload);
+      setText("events-success", "Evento actualizado.");
+    }
+
+    closeEventModal();
+    await loadEventsForChurch(currentChurchId);
+    renderEventsTable();
+  } catch (err) {
+    console.error("Error guardando event:", err);
+    setText("event-form-error", humanizePbError(err) || "Error guardando evento.");
+  }
+
+}
+
+async function deleteEvent(id) {
+  setText("events-error", "");
+  setText("events-success", "");
+
+  try {
+    // optional: delete attendance for that event
+    // (PocketBase doesn't do cascades automatically)
+    const attendance = await pb.collection("event_attendance").getFullList({
+      filter: `church.id = "${currentChurchId}" && event.id = "${id}"`,
+      sort: "created",
+    });
+    for (const a of attendance) {
+      try { await pb.collection("event_attendance").delete(a.id); } catch {}
+    }
+
+    await pb.collection("events").delete(id);
+    setText("events-success", "Evento eliminado.");
+
+    await loadEventsForChurch(currentChurchId);
+    renderEventsTable();
+  } catch (err) {
+    console.error("Error eliminando event:", err);
+    setText("events-error", humanizePbError(err) || "Error eliminando evento.");
+  }
+}
+
+/* ---------------- Helpers ---------------- */
+
+function setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text || "";
+}
+
+function setTableLoading(tbodyId, cols) {
+  const tbody = document.getElementById(tbodyId);
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="${cols}">Cargando...</td></tr>`;
+}
+
+function humanizePbError(err) {
+  const data = err?.data?.data;
+  if (data && typeof data === "object") {
+    for (const f of Object.keys(data)) {
+      const fm = data[f]?.message;
+      if (fm) return fm;
+    }
+  }
+  return err?.data?.message || err?.message || "";
+}
+
+function escapeHtml(s) {
+  return String(s || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatDateTime(iso) {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString();
+  } catch {
+    return String(iso);
+  }
+}
+
+function toLocalDatetimeInput(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const mm = pad(d.getMonth() + 1);
+  const dd = pad(d.getDate());
+  const hh = pad(d.getHours());
+  const mi = pad(d.getMinutes());
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+}
+
+// datetime-local gives local time; PB expects ISO with timezone.
+// Convert local to ISO string.
+function fromLocalDatetimeInput(localValue) {
+  const d = new Date(localValue);
+  return d.toISOString();
+}
+
+
+// --- EXPORTS PARA CALENDAR ---
+
+export async function openEventModalById(eventId) {
+  try {
+  // Ensure the Events view (and its modal inputs) exists in DOM
+  const church = safeGetCurrentChurch();
+  if (church) {
+    // If the modal inputs are missing, the view hasn't been initialized yet
+    if (!document.getElementById("event-id") || !document.getElementById("event-title")) {
+      initEventsView(church);
+    }
+  }
+
+  const record = await pb.collection("events").getOne(eventId);
+  openEventModal({ mode: "edit", record });
   } catch (err) {
     console.error("Error abriendo evento desde calendario:", err);
     alert("No se pudo abrir el evento.");
   }
+
+  // Force modal to be globally visible (not hidden with section display:none)
+  const modal = document.getElementById("event-modal");
+  if (modal && modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
+  if (modal) modal.style.display = "block";
 }
 
 function safeGetCurrentChurch() {

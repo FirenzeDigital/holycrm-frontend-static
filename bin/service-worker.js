@@ -2,7 +2,7 @@
 // Not registered anywhere yet.
 
 // Change this to your repository name
-// var GHPATH = '/holycrm-frontend-static';
+var GHPATH = '/holycrm-frontend-static';
  
 // Choose a different app prefix name
 var APP_PREFIX = 'holycrmwa_';
@@ -16,20 +16,20 @@ var VERSION = 'version_00';
 // The files to make available for offline use. make sure to add 
 // others to this list
 var URLS = [    
-  `/`,
-  `/login.html`
-  `/index.html`,
-  `/css/styles.css`,
-  `/js/app.js`
-  `/js/auth.js`
-  `/js/events.js`
-  `/js/groups.js`
-  `/js/locations.js`
-  `/js/login.js`
-  `/js/members.js`
-  `/js/ministries.js`
-  `/js/permissions_ui.js`
-  `/js/permissions.js`
-  `/js/pocketbase.umd.js`
-  `/js/users.js`
+  `${GHPATH}/`,
+  `${GHPATH}/login.html`
+  `${GHPATH}/index.html`,
+  `${GHPATH}/css/styles.css`,
+  `${GHPATH}/js/app.js`
+  `${GHPATH}/js/auth.js`
+  `${GHPATH}/js/events.js`
+  `${GHPATH}/js/groups.js`
+  `${GHPATH}/js/locations.js`
+  `${GHPATH}/js/login.js`
+  `${GHPATH}/js/members.js`
+  `${GHPATH}/js/ministries.js`
+  `${GHPATH}/js/permissions_ui.js`
+  `${GHPATH}/js/permissions.js`
+  `${GHPATH}/js/pocketbase.umd.js`
+  `${GHPATH}/js/users.js`
 ]
