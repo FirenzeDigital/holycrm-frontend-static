@@ -1,6 +1,7 @@
 // assets/js/app.js
 import { pb, logout } from "./auth.js";
 import { loadPermissionsForChurch, can, getRole } from "./permissions.js";
+
 import { initMembersView } from "./members.js";
 import { initUsersView } from "./users.js";
 import { initPermissionsView } from "./permissions_ui.js";
@@ -11,10 +12,12 @@ import { initMinistriesView } from "./ministries.js";
 import { initRotasView } from "./rotas.js";
 import { initCalendarView } from "./calendar.js";
 
-
-
-
 const root = document.getElementById("app");
+
+// ---- Shell state (render once) ----
+let churchesState = [];
+let currentChurchState = null;
+let shellRendered = false;
 
 async function init() {
   if (!pb.authStore.isValid) {
@@ -49,22 +52,19 @@ async function init() {
     localStorage.setItem("holycrm_current_church", JSON.stringify(currentChurch));
   }
 
-  await loadPermissionsForChurch(currentChurch.id);
-  renderShell(currentChurch, churches);
+  churchesState = churches;
+  currentChurchState = currentChurch;
+
+  await loadPermissionsForChurch(currentChurchState.id);
+
+  renderShellOnce();
+  applyChurchContextToShell();
+  navigateTo(getActiveView() || "dashboard");
 }
 
-function renderShell(currentChurch, churches) {
-  const showMembers = can("read", "members");
-  const showUsers = can("read", "users");
-  const showPermissions = can("read", "permissions");
-  const showEvents = can("read", "events");
-  const showGroups = can("read", "groups");
-  const showLocations = can("read", "locations");
-  const showMinistries = can("read", "ministries");
-  const showRotas = can("read", "service_role_assignments") || can("read", "service_roles");
-  const showCalendar = can("read", "calendar");
-
-
+function renderShellOnce() {
+  if (shellRendered) return;
+  shellRendered = true;
 
   root.innerHTML = `
     <header class="app-header">
@@ -79,41 +79,30 @@ function renderShell(currentChurch, churches) {
 
     <div class="app-layout">
       <nav class="app-sidebar" aria-label="Sidebar">
-
-        <!-- <div class="sidebar-top">
-        </div> -->
-
-        
         <ul class="sidebar-menu">
-          <li><a href="#" data-view="dashboard" class="active">Dashboard</a></li>
-          ${showMembers ? `<li><a href="#" data-view="members">Personas</a></li>` : ""}
-          ${showGroups ? `<li><a href="#" data-view="groups">Grupos</a></li>` : ""}
-          ${showEvents ? `<li><a href="#" data-view="events">Eventos</a></li>` : ""}
-          ${showLocations ? `<li><a href="#" data-view="locations">Misiones</a></li>` : ""}
-          ${showMinistries ? `<li><a href="#" data-view="ministries">Ministerios</a></li>` : ""}
-          ${showRotas ? `<li><a href="#" data-view="rotas">Roles mensuales</a></li>` : ""}
-          ${showCalendar ? `<li><a href="#" data-view="calendar">Calendario</a></li>` : ""}
-          <hr align="center" width="20%">
-          ${showUsers ? `<li><a href="#" data-view="users">Usuarios</a></li>` : ""}
-          ${showPermissions ? `<li><a href="#" data-view="permissions">Permisos</a></li>` : ""}
+          <li data-nav="dashboard"><a href="#" data-view="dashboard" class="active">Dashboard</a></li>
+
+          <li data-nav="members"><a href="#" data-view="members">Personas</a></li>
+          <li data-nav="groups"><a href="#" data-view="groups">Grupos</a></li>
+          <li data-nav="events"><a href="#" data-view="events">Eventos</a></li>
+          <li data-nav="locations"><a href="#" data-view="locations">Misiones</a></li>
+          <li data-nav="ministries"><a href="#" data-view="ministries">Ministerios</a></li>
+          <li data-nav="rotas"><a href="#" data-view="rotas">Roles mensuales</a></li>
+          <li data-nav="calendar"><a href="#" data-view="calendar">Calendario</a></li>
+
+          <li data-nav="divider"><hr align="center" width="20%"></li>
+
+          <li data-nav="users"><a href="#" data-view="users">Usuarios</a></li>
+          <li data-nav="permissions"><a href="#" data-view="permissions">Permisos</a></li>
         </ul>
 
         <div class="sidebar-bottom">
           <div class="sidebar-meta">
-            <div class="pill">Rol: <strong>${escapeHtml(getRole() || "")}</strong></div>
+            <div class="pill">Rol: <strong id="sidebar-role"></strong></div>
 
             <label class="sidebar-label">
               <span>Iglesia</span>
-              <select id="church-switcher-select">
-                ${churches
-                  .map(
-                    (c) =>
-                      `<option value="${c.id}" ${
-                        c.id === currentChurch.id ? "selected" : ""
-                      }>${escapeHtml(c.name)}</option>`
-                  )
-                  .join("")}
-              </select>
+              <select id="church-switcher-select"></select>
             </label>
           </div>
           </br>
@@ -121,7 +110,6 @@ function renderShell(currentChurch, churches) {
           <hr align="center" width="20%">
           <center>Software for churches</center></h5>
         </div>
-        
       </nav>
 
       <div id="drawer-backdrop" class="drawer-backdrop" style="display:none"></div>
@@ -132,7 +120,7 @@ function renderShell(currentChurch, churches) {
           <div class="dashboard-grid">
             <div class="card dash-card">
               <h3>Church</h3>
-              <div class="dash-metric">${escapeHtml(currentChurch.name)}</div>
+              <div class="dash-metric" id="dash-current-church"></div>
               <div class="muted" style="margin-top:6px;">Cambiala desde el sidebar.</div>
             </div>
 
@@ -156,8 +144,7 @@ function renderShell(currentChurch, churches) {
     </div>
   `;
 
-
-  // Toggle sidebar (mobile drawer + desktop collapse)
+  // ---- Sidebar toggle (mobile drawer + desktop collapse) ----
   const toggleBtn = document.getElementById("sidebar-toggle");
   const backdrop = document.getElementById("drawer-backdrop");
 
@@ -172,11 +159,9 @@ function renderShell(currentChurch, churches) {
     toggleBtn.addEventListener("click", (e) => {
       e.preventDefault();
       const isMobile = window.matchMedia("(max-width: 900px)").matches;
-
       if (isMobile) {
         document.body.classList.toggle("sidebar-open");
       } else {
-        // desktop: collapse/expand
         document.body.classList.toggle("sidebar-collapsed");
       }
       setBackdrop();
@@ -191,7 +176,6 @@ function renderShell(currentChurch, churches) {
   }
 
   window.addEventListener("resize", () => {
-    // if you resize to desktop, close drawer
     if (!window.matchMedia("(max-width: 900px)").matches) {
       document.body.classList.remove("sidebar-open");
     }
@@ -209,122 +193,171 @@ function renderShell(currentChurch, churches) {
 
   setBackdrop();
 
-
-
-
-
-  
-
+  // ---- Logout ----
   document.getElementById("logout-btn").addEventListener("click", () => {
     logout();
     window.location.href = "login.html";
   });
 
-  const churchSelect = document.getElementById("church-switcher-select");
-  churchSelect.addEventListener("change", async () => {
-    const newId = churchSelect.value;
-    const newChurch = churches.find((c) => c.id === newId);
-    if (!newChurch) return;
+  // ---- Church switcher (do NOT re-render shell) ----
+  document.getElementById("church-switcher-select").addEventListener("change", onChurchChanged);
 
-    localStorage.setItem("holycrm_current_church", JSON.stringify(newChurch));
-    await loadPermissionsForChurch(newChurch.id);
-    renderShell(newChurch, churches);
-  });
-
+  // ---- Navigation (wire once) ----
   const links = root.querySelectorAll(".app-sidebar a[data-view]");
-  const sections = root.querySelectorAll(".app-main section[data-view]");
-
   links.forEach((link) => {
     link.addEventListener("click", (e) => {
       e.preventDefault();
       const view = link.getAttribute("data-view");
-
-      links.forEach((l) => l.classList.remove("active"));
-      link.classList.add("active");
-
-      sections.forEach((s) => {
-        const isTarget = s.getAttribute("data-view") === view;
-        s.style.display = isTarget ? "block" : "none";
-        if (!isTarget) return;
-
-        const church = currentChurchFromStorage();
-
-        if (view === "members") {
-          if (!can("read", "members")) {
-            s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
-            return;
-          }
-          initMembersView(church);
-        }
-
-        if (view === "users") {
-          if (!can("read", "users")) {
-            s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
-            return;
-          }
-          initUsersView(church);
-        }
-
-        if (view === "permissions") {
-          if (!can("read", "permissions")) {
-            s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
-            return;
-          }
-          initPermissionsView(church, churches);
-        }
-
-        if (view === "events") {
-          if (!can("read", "events")) {
-            s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
-            return;
-          }
-          initEventsView(church);
-        }
-
-        if (view === "groups") {
-          if (!can("read", "groups")) {
-            s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
-            return;
-          }
-          initGroupsView(church);
-        }
-
-        if (view === "locations") {
-          if (!can("read", "locations")) {
-            s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
-            return;
-          }
-          initLocationsView(church);
-        }        
-
-        if (view === "ministries") {
-          if (!can("read", "ministries")) {
-            s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
-            return;
-          }
-          initMinistriesView(church);
-        }
-
-        if (view === "rotas") {
-          if (!showRotas) {
-            s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
-            return;
-          }
-          initRotasView(church);
-        }
-
-        if (view === "calendar") {
-          if (!can("read", "calendar")) {
-            s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
-            return;
-          }
-          initCalendarView(church);
-        }
-
-
-      });
+      navigateTo(view);
     });
   });
+}
+
+async function onChurchChanged() {
+  const churchSelect = document.getElementById("church-switcher-select");
+  const newId = churchSelect.value;
+
+  const newChurch = churchesState.find((c) => c.id === newId);
+  if (!newChurch) return;
+
+  currentChurchState = newChurch;
+  localStorage.setItem("holycrm_current_church", JSON.stringify(newChurch));
+
+  await loadPermissionsForChurch(newChurch.id);
+
+  applyChurchContextToShell();
+
+  // Re-run current view init (fixes the “Cargando módulo...” issue without F5)
+  const view = getActiveView() || "dashboard";
+  navigateTo(view);
+}
+
+function applyChurchContextToShell() {
+  // role
+  const roleStrong = document.getElementById("sidebar-role");
+  if (roleStrong) roleStrong.textContent = escapeHtml(getRole() || "");
+
+  // church selector
+  const sel = document.getElementById("church-switcher-select");
+  if (sel) {
+    sel.innerHTML = churchesState
+      .map(
+        (c) =>
+          `<option value="${c.id}" ${c.id === currentChurchState?.id ? "selected" : ""}>${escapeHtml(
+            c.name
+          )}</option>`
+      )
+      .join("");
+  }
+
+  // dashboard metric
+  const dash = document.getElementById("dash-current-church");
+  if (dash) dash.textContent = escapeHtml(currentChurchState?.name || "");
+
+  // menu visibility
+  const showMembers = can("read", "members");
+  const showUsers = can("read", "users");
+  const showPermissions = can("read", "permissions");
+  const showEvents = can("read", "events");
+  const showGroups = can("read", "groups");
+  const showLocations = can("read", "locations");
+  const showMinistries = can("read", "ministries");
+  const showRotas = can("read", "service_role_assignments") || can("read", "service_roles");
+  const showCalendar = can("read", "calendar");
+
+  setNavVisible("members", showMembers);
+  setNavVisible("groups", showGroups);
+  setNavVisible("events", showEvents);
+  setNavVisible("locations", showLocations);
+  setNavVisible("ministries", showMinistries);
+  setNavVisible("rotas", showRotas);
+  setNavVisible("calendar", showCalendar);
+  setNavVisible("users", showUsers);
+  setNavVisible("permissions", showPermissions);
+
+  // divider only if there is something below it visible
+  const dividerNeeded = showUsers || showPermissions;
+  setNavVisible("divider", dividerNeeded);
+
+  // If the active view just became forbidden, bounce to dashboard
+  const active = getActiveView();
+  if (active && active !== "dashboard" && !canView(active, showRotas)) {
+    navigateTo("dashboard");
+  }
+}
+
+function setNavVisible(view, visible) {
+  const li = root.querySelector(`.sidebar-menu li[data-nav="${view}"]`);
+  if (!li) return;
+  li.style.display = visible ? "" : "none";
+}
+
+function getActiveView() {
+  return root.querySelector(".app-sidebar a.active[data-view]")?.getAttribute("data-view") || null;
+}
+
+function setActiveLink(view) {
+  const links = root.querySelectorAll(".app-sidebar a[data-view]");
+  links.forEach((l) => {
+    l.classList.toggle("active", l.getAttribute("data-view") === view);
+  });
+}
+
+function showSection(view) {
+  const sections = root.querySelectorAll(".app-main section[data-view]");
+  sections.forEach((s) => {
+    const isTarget = s.getAttribute("data-view") === view;
+    s.style.display = isTarget ? "block" : "none";
+  });
+}
+
+function canView(view, showRotasComputed) {
+  if (view === "dashboard") return true;
+  if (view === "members") return can("read", "members");
+  if (view === "users") return can("read", "users");
+  if (view === "permissions") return can("read", "permissions");
+  if (view === "events") return can("read", "events");
+  if (view === "groups") return can("read", "groups");
+  if (view === "locations") return can("read", "locations");
+  if (view === "ministries") return can("read", "ministries");
+  if (view === "rotas") return !!showRotasComputed;
+  if (view === "calendar") return can("read", "calendar");
+  return false;
+}
+
+function navigateTo(view) {
+  // permissions gate
+  const showRotasComputed = can("read", "service_role_assignments") || can("read", "service_roles");
+  if (!canView(view, showRotasComputed)) {
+    const section = root.querySelector(`.app-main section[data-view="${view}"]`);
+    if (section) {
+      section.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
+      showSection(view);
+      setActiveLink(view);
+    } else {
+      showSection("dashboard");
+      setActiveLink("dashboard");
+    }
+    return;
+  }
+
+  setActiveLink(view);
+  showSection(view);
+
+  const church = currentChurchState || currentChurchFromStorage();
+
+  // Module inits (re-run on church switch; shell DOM is not destroyed anymore)
+  if (view === "members") return initMembersView(church);
+  if (view === "users") return initUsersView(church);
+  if (view === "permissions") return initPermissionsView(church, churchesState);
+  if (view === "events") return initEventsView(church);
+  if (view === "groups") return initGroupsView(church);
+  if (view === "locations") return initLocationsView(church);
+  if (view === "ministries") return initMinistriesView(church);
+  if (view === "rotas") return initRotasView(church);
+  if (view === "calendar") return initCalendarView(church);
+
+  // dashboard: no-op
 }
 
 function currentChurchFromStorage() {
