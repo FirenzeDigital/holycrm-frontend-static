@@ -326,7 +326,8 @@ function canView(view, showRotasComputed) {
   if (view === "ministries") return can("read", "ministries");
   if (view === "rotas") return !!showRotasComputed;
   if (view === "calendar") return can("read", "calendar");
-  // if (view === "finance") return can("read", "finance");
+  if (view === "finance") return can("read", "finance");
+  if (view === "finance_transactions") return can("read", "finance_transactions");
   return false;
 }
 
@@ -361,14 +362,15 @@ function navigateTo(view) {
   if (view === "ministries") return initMinistriesView(church);
   if (view === "rotas") return initRotasView(church);
   if (view === "calendar") return initCalendarView(church);
-  // if (view === "finance") return initFinanceView(church);
-  if (view === "finance") {
-    if (!can("read", "finance_transactions")) {
-      s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
-      return;
-    }
-    initFinanceView(church);
-  }
+  if (view === "finance") return initFinanceView(church);
+  if (view === "finance_transactions") return initFinanceView(church);
+  // if (view === "finance") {
+  //   if (!can("read", "finance_transactions")) {
+  //     s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
+  //     return;
+  //   }
+  //   initFinanceView(church);
+  // }
 
   // dashboard: no-op
 }
