@@ -278,6 +278,7 @@ function applyChurchContextToShell() {
   setNavVisible("calendar", showCalendar);
   setNavVisible("users", showUsers);
   setNavVisible("permissions", showPermissions);
+  setNavVisible("finance", showFinance);
 
   // divider only if there is something below it visible
   const dividerNeeded = showUsers || showPermissions;
@@ -326,6 +327,14 @@ function canView(view, showRotasComputed) {
   if (view === "ministries") return can("read", "ministries");
   if (view === "rotas") return !!showRotasComputed;
   if (view === "calendar") return can("read", "calendar");
+  if (view === "finance") {
+    return (
+      can("read", "finance_categories") ||
+      can("read", "finance_transactions") ||
+      can("read", "finance")
+    );
+  }
+
   return false;
 }
 
@@ -361,7 +370,6 @@ function navigateTo(view) {
   if (view === "rotas") return initRotasView(church);
   if (view === "calendar") return initCalendarView(church);
   if (view === "finance") return initFinanceView(church);
-  if (view === "finance_transactions") return initFinanceView(church);
   // dashboard: no-op
 }
 

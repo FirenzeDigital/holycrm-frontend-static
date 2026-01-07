@@ -14,7 +14,7 @@ export async function initFinanceView(church) {
   if (!section) return;
 
   // Permissions gate
-  if (!can("read", "finance_categories")) {
+  if (!(can("read", "finance_categories") || can("read", "finance_transactions") || can("read", "finance"))) {
     section.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
     return;
   }
