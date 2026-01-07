@@ -1,11 +1,14 @@
 // assets/js/modules.js
+// Import the actual can function from permissions.js
+import { can as checkPermission } from './permissions.js';
+
 export const MODULES = {
   dashboard: {
     id: 'dashboard',
     label: 'Dashboard',
     icon: '📊',
-    defaultPermission: 'always_visible', // Special case - always shows
-    initFunction: null // No initialization needed
+    defaultPermission: 'always_visible',
+    initFunction: null
   },
   members: {
     id: 'members',
@@ -46,7 +49,7 @@ export const MODULES = {
     id: 'rotas',
     label: 'Roles mensuales',
     icon: '🔄',
-    defaultPermission: 'read:service_roles', // Simplified
+    defaultPermission: 'read:service_roles',
     initFunction: 'initRotasView'
   },
   calendar: {
@@ -60,7 +63,7 @@ export const MODULES = {
     id: 'finance',
     label: 'Finanzas',
     icon: '💰',
-    defaultPermission: 'read:finance', // Use your backend collection name
+    defaultPermission: 'read:finance',
     initFunction: 'initFinanceView'
   },
   users: {
@@ -102,21 +105,17 @@ export function shouldShowModule(moduleId) {
   
   // Special case handling for rotas
   if (moduleId === 'rotas') {
-    return can('read', 'service_role_assignments') || can('read', 'service_roles');
+    return checkPermission('read', 'service_role_assignments') || checkPermission('read', 'service_roles');
   }
   
   // Special case handling for finance - use your actual backend collection name
   if (moduleId === 'finance') {
-    return can('read', 'finance') || can('read', 'finance_categories') || can('read', 'finance_transactions');
+    return checkPermission('read', 'finance') || 
+           checkPermission('read', 'finance_categories') || 
+           checkPermission('read', 'finance_transactions');
   }
   
   // Generic permission check - convert "read:members" to "read", "members"
   const [action, resource] = module.defaultPermission.split(':');
-  return can(action, resource);
-}
-
-// Simple helper to check permissions (you already have this in permissions.js)
-function can(action, resource) {
-  // This delegates to your existing permissions system
-  return window.can ? window.can(action, resource) : false;
+  return checkPermission(action, resource);
 }
