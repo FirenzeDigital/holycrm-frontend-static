@@ -345,45 +345,16 @@ function applyChurchContextToShell() {
   const dash = document.getElementById("dash-current-church");
   if (dash) dash.textContent = escapeHtml(currentChurchState?.name || "");
 
-  // menu visibility
-  const showMembers = can("read", "members");
-  const showUsers = can("read", "users");
-  const showPermissions = can("read", "permissions");
-  const showEvents = can("read", "events");
-  const showGroups = can("read", "groups");
-  const showLocations = can("read", "locations");
-  const showMinistries = can("read", "ministries");
-  const showRotas = can("read", "service_role_assignments") || can("read", "service_roles");
-  const showCalendar = can("read", "calendar");
-  const showFinance = can("read", "finance") || can("read", "finance_categories") || can("read", "finance_transactions");
-  
-  setNavVisible("members", showMembers);
-  setNavVisible("groups", showGroups);
-  setNavVisible("events", showEvents);
-  setNavVisible("locations", showLocations);
-  setNavVisible("ministries", showMinistries);
-  setNavVisible("rotas", showRotas);
-  setNavVisible("calendar", showCalendar);
-  setNavVisible("users", showUsers);
-  setNavVisible("permissions", showPermissions);
-  setNavVisible("finance", showFinance);
-
-  // divider only if there is something below it visible
-  const dividerNeeded = showUsers || showPermissions;
-  setNavVisible("divider", dividerNeeded);
+  // ----- DYNAMIC MENU RENDERING -----
+  renderDynamicMenu(); // This replaces ALL the old visibility logic
 
   // If the active view just became forbidden, bounce to dashboard
   const active = getActiveView();
-  if (active && active !== "dashboard" && !canView(active, showRotas)) {
+  if (active && active !== "dashboard" && !shouldShowModule(active)) {
     navigateTo("dashboard");
   }
 }
 
-function setNavVisible(view, visible) {
-  const li = root.querySelector(`.sidebar-menu li[data-nav="${view}"]`);
-  if (!li) return;
-  li.style.display = visible ? "" : "none";
-}
 
 function getActiveView() {
   return root.querySelector(".app-sidebar a.active[data-view]")?.getAttribute("data-view") || null;
@@ -427,17 +398,15 @@ function canView(view, showRotasComputed) {
 }
 
 function navigateTo(view) {
-  // permissions gate
-  const showRotasComputed = can("read", "service_role_assignments") || can("read", "service_roles");
-  if (!canView(view, showRotasComputed)) {
+  // permissions gate - USE THE NEW SYSTEM
+  if (!shouldShowModule(view)) {
     const section = root.querySelector(`.app-main section[data-view="${view}"]`);
     if (section) {
       section.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
       showSection(view);
       setActiveLink(view);
     } else {
-      showSection("dashboard");
-      setActiveLink("dashboard");
+      navigateTo("dashboard");
     }
     return;
   }
@@ -447,18 +416,17 @@ function navigateTo(view) {
 
   const church = currentChurchState || currentChurchFromStorage();
 
-  // Module inits (re-run on church switch; shell DOM is not destroyed anymore)
-  if (view === "members") return initMembersView(church);
-  if (view === "users") return initUsersView(church);
-  if (view === "permissions") return initPermissionsView(church, churchesState);
-  if (view === "events") return initEventsView(church);
-  if (view === "groups") return initGroupsView(church);
-  if (view === "locations") return initLocationsView(church);
-  if (view === "ministries") return initMinistriesView(church);
-  if (view === "rotas") return initRotasView(church);
-  if (view === "calendar") return initCalendarView(church);
-  if (view === "finance") return initFinanceView(church);
-  // dashboard: no-op
+  // Module initialization - USE THE NEW INIT_FUNCTIONS MAP
+  if (view === "dashboard") return; // dashboard: no-op
+  
+  // Use the new INIT_FUNCTIONS map
+  if (INIT_FUNCTIONS[view]) {
+    if (view === "permissions") {
+      INIT_FUNCTIONS[view](church, churchesState);
+    } else {
+      INIT_FUNCTIONS[view](church);
+    }
+  }
 }
 
 function currentChurchFromStorage() {
