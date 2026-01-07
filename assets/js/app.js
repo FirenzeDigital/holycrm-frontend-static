@@ -123,38 +123,6 @@ function renderDynamicSections() {
   });
 }
 
-function applyChurchContextToShell() {
-  // role
-  const roleStrong = document.getElementById('sidebar-role');
-  if (roleStrong) roleStrong.textContent = escapeHtml(getRole() || '');
-  
-  // church selector
-  const sel = document.getElementById('church-switcher-select');
-  if (sel) {
-    sel.innerHTML = churchesState
-      .map(
-        (c) =>
-          `<option value="${c.id}" ${c.id === currentChurchState?.id ? 'selected' : ''}>${escapeHtml(
-            c.name
-          )}</option>`
-      )
-      .join('');
-  }
-  
-  // dashboard metric
-  const dash = document.getElementById('dash-current-church');
-  if (dash) dash.textContent = escapeHtml(currentChurchState?.name || '');
-  
-  // Dynamically render menu based on current permissions
-  renderDynamicMenu();
-  
-  // If the active view just became forbidden, bounce to dashboard
-  const active = getActiveView();
-  if (active && active !== 'dashboard' && !shouldShowModule(active)) {
-    navigateTo('dashboard');
-  }
-}
-
 function navigateTo(view) {
   // permissions gate
   if (!shouldShowModule(view)) {
