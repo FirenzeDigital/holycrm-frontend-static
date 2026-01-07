@@ -44,22 +44,18 @@ function renderDynamicMenu() {
   
   MODULE_CATEGORIES.forEach(category => {
     const visibleModules = category.moduleIds.filter(moduleId => {
-      // For the divider check
       if (category.id === 'admin') {
         return category.moduleIds.some(id => shouldShowModule(id));
       }
       return shouldShowModule(moduleId);
     });
     
-    // Skip entire category if nothing is visible
     if (visibleModules.length === 0 && category.id !== 'admin') return;
     
-    // For admin category, only add divider if something is visible
     if (category.id === 'admin' && visibleModules.length > 0) {
       menuContainer.innerHTML += `<li data-nav="divider"><hr align="center" width="20%"></li>`;
     }
     
-    // Add menu items
     visibleModules.forEach(moduleId => {
       const module = MODULES[moduleId];
       const isActive = getActiveView() === moduleId;
@@ -74,13 +70,34 @@ function renderDynamicMenu() {
     });
   });
   
-  // Re-attach click events
-  const links = menuContainer.querySelectorAll('a[data-view]');
+  // Re-attach ALL event listeners for the new menu items
+  attachMenuEventListeners();
+}
+
+function attachMenuEventListeners() {
+  // 1. Navigation click handlers
+  const links = root.querySelectorAll('.app-sidebar a[data-view]');
   links.forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       const view = link.getAttribute('data-view');
       navigateTo(view);
+    });
+  });
+  
+  // 2. Mobile drawer closing behavior (IMPORTANT!)
+  const sidebarLinks = root.querySelectorAll('.app-sidebar a[data-view]');
+  sidebarLinks.forEach((link) => {
+    link.addEventListener('click', () => {
+      // Close the mobile drawer when a menu item is clicked
+      document.body.classList.remove('sidebar-open');
+      
+      // Update the backdrop visibility
+      const backdrop = document.getElementById('drawer-backdrop');
+      if (backdrop) {
+        const isMobile = window.matchMedia('(max-width: 900px)').matches;
+        backdrop.style.display = isMobile ? 'none' : 'none';
+      }
     });
   });
 }
@@ -205,32 +222,7 @@ function renderShellOnce() {
       <div id="drawer-backdrop" class="drawer-backdrop" style="display:none"></div>
 
       <main class="app-main" id="app-main">
-        <section data-view="dashboard">
-          <h1>Dashboard</h1>
-          <div class="dashboard-grid">
-            <div class="card dash-card">
-              <h3>Church</h3>
-              <div class="dash-metric" id="dash-current-church"></div>
-              <div class="muted" style="margin-top:6px;">Cambiala desde el sidebar.</div>
-            </div>
-
-            <div class="card dash-card">
-              <h3>Accesos</h3>
-              <div class="muted">El menú se adapta según permisos.</div>
-            </div>
-          </div>
-        </section>
-
-        <section data-view="members" style="display:none"><h1>Cargando módulo...</h1></section>
-        <section data-view="users" style="display:none"><h1>Cargando módulo...</h1></section>
-        <section data-view="permissions" style="display:none"><h1>Cargando módulo...</h1></section>
-        <section data-view="events" style="display:none"><h1>Cargando módulo...</h1></section>
-        <section data-view="groups" style="display:none"><h1>Cargando módulo...</h1></section>
-        <section data-view="locations" style="display:none"><h1>Cargando módulo...</h1></section>
-        <section data-view="ministries" style="display:none"><h1>Cargando módulo...</h1></section>
-        <section data-view="rotas" style="display:none"><h1>Cargando módulo...</h1></section>
-        <section data-view="calendar" style="display:none"><h1>Cargando módulo...</h1></section>
-        <section data-view="finance" style="display:none"><h1>Cargando módulo...</h1></section>
+        <!-- Sections will be dynamically created by renderDynamicSections() -->
       </main>
     </div>
   `;
@@ -290,20 +282,33 @@ function renderShellOnce() {
     window.location.href = "login.html";
   });
 
+
   // ---- Church switcher (do NOT re-render shell) ----
   document.getElementById("church-switcher-select").addEventListener("change", onChurchChanged);
 
-  // ---- Navigation (wire once) ----
-  const links = root.querySelectorAll(".app-sidebar a[data-view]");
-  links.forEach((link) => {
-    link.addEventListener("click", (e) => {
-      e.preventDefault();
-      const view = link.getAttribute("data-view");
-      navigateTo(view);
+  // ---- Event delegation for menu clicks (works with dynamic content) ----
+  const sidebar = root.querySelector('.app-sidebar');
+  if (sidebar) {
+    sidebar.addEventListener('click', (e) => {
+      const link = e.target.closest('a[data-view]');
+      if (link) {
+        e.preventDefault();
+        const view = link.getAttribute('data-view');
+        navigateTo(view);
+        
+        // Close mobile drawer
+        if (window.matchMedia('(max-width: 900px)').matches) {
+          document.body.classList.remove('sidebar-open');
+          const backdrop = document.getElementById('drawer-backdrop');
+          if (backdrop) backdrop.style.display = 'none';
+        }
+      }
     });
-  });
+  }
+  
+  // Call renderDynamicSections to create initial sections
+  renderDynamicSections();
 }
-
 async function onChurchChanged() {
   const churchSelect = document.getElementById("church-switcher-select");
   const newId = churchSelect.value;
