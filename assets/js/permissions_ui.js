@@ -320,3 +320,55 @@ function escapeHtml(s) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
+
+
+// Add this CSS to your stylesheet or inline in permissions_ui.js
+const mobilePermissionsCSS = `
+@media (max-width: 768px) {
+  .permissions-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
+  .permission-card {
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
+  }
+  
+  .permission-actions {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+  
+  .permission-actions button {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+  
+  .role-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
+  }
+  
+  .module-filters {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+  
+  .module-filters button {
+    flex: 1 0 auto !important;
+    min-width: 120px !important;
+  }
+}
+`;
+
+// Add this to your initPermissionsView function
+function injectMobileStyles() {
+  if (!document.getElementById('mobile-permissions-styles')) {
+    const style = document.createElement('style');
+    style.id = 'mobile-permissions-styles';
+    style.textContent = mobilePermissionsCSS;
+    document.head.appendChild(style);
+  }
+}

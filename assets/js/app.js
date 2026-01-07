@@ -1,7 +1,9 @@
 // assets/js/app.js
 import { pb, logout } from "./auth.js";
 import { loadPermissionsForChurch, can, getRole } from "./permissions.js";
+import { MODULES, MODULE_CATEGORIES, shouldShowModule } from "./modules.js";
 
+// Import all init functions
 import { initMembersView } from "./members.js";
 import { initUsersView } from "./users.js";
 import { initPermissionsView } from "./permissions_ui.js";
@@ -13,12 +15,175 @@ import { initRotasView } from "./rotas.js";
 import { initCalendarView } from "./calendar.js";
 import { initFinanceView } from "./finance.js";
 
+// Map module IDs to their init functions
+const INIT_FUNCTIONS = {
+  members: initMembersView,
+  users: initUsersView,
+  permissions: (church, churches) => initPermissionsView(church, churches),
+  events: initEventsView,
+  groups: initGroupsView,
+  locations: initLocationsView,
+  ministries: initMinistriesView,
+  rotas: initRotasView,
+  calendar: initCalendarView,
+  finance: initFinanceView
+};
+
 const root = document.getElementById("app");
 
 // ---- Shell state (render once) ----
 let churchesState = [];
 let currentChurchState = null;
 let shellRendered = false;
+
+function renderDynamicMenu() {
+  const menuContainer = root.querySelector('.sidebar-menu');
+  if (!menuContainer) return;
+  
+  menuContainer.innerHTML = '';
+  
+  MODULE_CATEGORIES.forEach(category => {
+    const visibleModules = category.moduleIds.filter(moduleId => {
+      // For the divider check
+      if (category.id === 'admin') {
+        return category.moduleIds.some(id => shouldShowModule(id));
+      }
+      return shouldShowModule(moduleId);
+    });
+    
+    // Skip entire category if nothing is visible
+    if (visibleModules.length === 0 && category.id !== 'admin') return;
+    
+    // For admin category, only add divider if something is visible
+    if (category.id === 'admin' && visibleModules.length > 0) {
+      menuContainer.innerHTML += `<li data-nav="divider"><hr align="center" width="20%"></li>`;
+    }
+    
+    // Add menu items
+    visibleModules.forEach(moduleId => {
+      const module = MODULES[moduleId];
+      const isActive = getActiveView() === moduleId;
+      
+      menuContainer.innerHTML += `
+        <li data-nav="${module.id}">
+          <a href="#" data-view="${module.id}" class="${isActive ? 'active' : ''}">
+            ${module.icon ? module.icon + ' ' : ''}${module.label}
+          </a>
+        </li>
+      `;
+    });
+  });
+  
+  // Re-attach click events
+  const links = menuContainer.querySelectorAll('a[data-view]');
+  links.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const view = link.getAttribute('data-view');
+      navigateTo(view);
+    });
+  });
+}
+
+function renderDynamicSections() {
+  const mainContainer = root.querySelector('.app-main');
+  if (!mainContainer) return;
+  
+  // Keep existing sections or create them
+  Object.keys(MODULES).forEach(moduleId => {
+    const module = MODULES[moduleId];
+    const existingSection = mainContainer.querySelector(`section[data-view="${moduleId}"]`);
+    
+    if (!existingSection) {
+      const section = document.createElement('section');
+      section.setAttribute('data-view', moduleId);
+      section.style.display = 'none';
+      
+      if (moduleId === 'dashboard') {
+        section.innerHTML = `
+          <h1>Dashboard</h1>
+          <div class="dashboard-grid">
+            <div class="card dash-card">
+              <h3>Church</h3>
+              <div class="dash-metric" id="dash-current-church"></div>
+              <div class="muted" style="margin-top:6px;">Cambiala desde el sidebar.</div>
+            </div>
+            <div class="card dash-card">
+              <h3>Accesos</h3>
+              <div class="muted">El menú se adapta según permisos.</div>
+            </div>
+          </div>
+        `;
+      } else {
+        section.innerHTML = `<h1>Cargando módulo...</h1>`;
+      }
+      
+      mainContainer.appendChild(section);
+    }
+  });
+}
+
+function applyChurchContextToShell() {
+  // role
+  const roleStrong = document.getElementById('sidebar-role');
+  if (roleStrong) roleStrong.textContent = escapeHtml(getRole() || '');
+  
+  // church selector
+  const sel = document.getElementById('church-switcher-select');
+  if (sel) {
+    sel.innerHTML = churchesState
+      .map(
+        (c) =>
+          `<option value="${c.id}" ${c.id === currentChurchState?.id ? 'selected' : ''}>${escapeHtml(
+            c.name
+          )}</option>`
+      )
+      .join('');
+  }
+  
+  // dashboard metric
+  const dash = document.getElementById('dash-current-church');
+  if (dash) dash.textContent = escapeHtml(currentChurchState?.name || '');
+  
+  // Dynamically render menu based on current permissions
+  renderDynamicMenu();
+  
+  // If the active view just became forbidden, bounce to dashboard
+  const active = getActiveView();
+  if (active && active !== 'dashboard' && !shouldShowModule(active)) {
+    navigateTo('dashboard');
+  }
+}
+
+function navigateTo(view) {
+  // permissions gate
+  if (!shouldShowModule(view)) {
+    const section = root.querySelector(`.app-main section[data-view="${view}"]`);
+    if (section) {
+      section.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
+      showSection(view);
+      setActiveLink(view);
+    } else {
+      navigateTo('dashboard');
+    }
+    return;
+  }
+  
+  setActiveLink(view);
+  showSection(view);
+  
+  const church = currentChurchState || currentChurchFromStorage();
+  
+  // Module initialization
+  const module = MODULES[view];
+  if (module && module.initFunction && INIT_FUNCTIONS[view]) {
+    if (view === 'permissions') {
+      INIT_FUNCTIONS[view](church, churchesState);
+    } else {
+      INIT_FUNCTIONS[view](church);
+    }
+  }
+}
 
 async function init() {
   if (!pb.authStore.isValid) {
@@ -80,23 +245,7 @@ function renderShellOnce() {
 
     <div class="app-layout">
       <nav class="app-sidebar" aria-label="Sidebar">
-        <ul class="sidebar-menu">
-          <li data-nav="dashboard"><a href="#" data-view="dashboard" class="active">Dashboard</a></li>
-
-          <li data-nav="members"><a href="#" data-view="members">Personas</a></li>
-          <li data-nav="groups"><a href="#" data-view="groups">Grupos</a></li>
-          <li data-nav="events"><a href="#" data-view="events">Eventos</a></li>
-          <li data-nav="locations"><a href="#" data-view="locations">Misiones</a></li>
-          <li data-nav="ministries"><a href="#" data-view="ministries">Ministerios</a></li>
-          <li data-nav="rotas"><a href="#" data-view="rotas">Roles mensuales</a></li>
-          <li data-nav="calendar"><a href="#" data-view="calendar">Calendario</a></li>
-          <li data-nav="finance"><a href="#" data-view="finance">Finanzas</a></li>
-
-          <li data-nav="divider"><hr align="center" width="20%"></li>
-
-          <li data-nav="users"><a href="#" data-view="users">Usuarios</a></li>
-          <li data-nav="permissions"><a href="#" data-view="permissions">Permisos</a></li>
-        </ul>
+        <ul class="sidebar-menu"></ul>
 
         <div class="sidebar-bottom">
           <div class="sidebar-meta">
@@ -267,7 +416,7 @@ function applyChurchContextToShell() {
   const showMinistries = can("read", "ministries");
   const showRotas = can("read", "service_role_assignments") || can("read", "service_roles");
   const showCalendar = can("read", "calendar");
-  const showFinance = can("read", "finance_categories") || can("read", "finance_transactions");
+  const showFinance = can("read", "finance") || can("read", "finance_categories") || can("read", "finance_transactions");
   
   setNavVisible("members", showMembers);
   setNavVisible("groups", showGroups);
