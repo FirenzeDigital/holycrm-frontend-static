@@ -63,7 +63,7 @@ export const MODULES = {
     id: 'finance',
     label: 'Finanzas',
     icon: '💰',
-    defaultPermission: 'read:finance',
+    defaultPermission: 'read:finance_categories',
     initFunction: 'initFinanceView'
   },
   users: {
@@ -108,11 +108,9 @@ export function shouldShowModule(moduleId) {
     return checkPermission('read', 'service_role_assignments') || checkPermission('read', 'service_roles');
   }
   
-  // Special case handling for finance - use your actual backend collection name
+  // Special case handling for finance - FIXED
   if (moduleId === 'finance') {
-    return checkPermission('read', 'finance') || 
-           checkPermission('read', 'finance_categories') || 
-           checkPermission('read', 'finance_transactions');
+    return checkPermission('read', 'finance_categories') || checkPermission('read', 'finance_transactions');
   }
   
   // Generic permission check - convert "read:members" to "read", "members"
