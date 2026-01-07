@@ -21,6 +21,7 @@ export const MODULES = [
   { key: "calendar", name: "calendar" },
   { key: "finance", name: "finance" },
   { key: "finance_transactions", name: "finance_transactions" },
+  { key: "finance_categories", name: "finance_categories" },
 ];
 
 // Default permissions (Option C baseline)
@@ -42,6 +43,7 @@ const DEFAULTS = {
     calendar:{ c: true,  r: true,  u: true,  d: true  },
     finance:{ c: true,  r: true,  u: true,  d: true  },
     finance_transactions:{ c: true,  r: true,  u: true,  d: true  },
+    finance_categories:{ c: true,  r: true,  u: true,  d: true  },
   },
   manager: {
     members:      { c: true,  r: true,  u: true,  d: true  },
