@@ -90,7 +90,7 @@ function renderShellOnce() {
           <li data-nav="ministries"><a href="#" data-view="ministries">Ministerios</a></li>
           <li data-nav="rotas"><a href="#" data-view="rotas">Roles mensuales</a></li>
           <li data-nav="calendar"><a href="#" data-view="calendar">Calendario</a></li>
-          ${showFinance ? `<li><a href="#" data-view="finance">Finanzas</a></li>` : ""}
+          <li data-nav="finance"><a href="#" data-view="finance">Finanzas</a></li>
 
           <li data-nav="divider"><hr align="center" width="20%"></li>
 
