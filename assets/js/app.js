@@ -90,7 +90,7 @@ function renderShellOnce() {
           <li data-nav="ministries"><a href="#" data-view="ministries">Ministerios</a></li>
           <li data-nav="rotas"><a href="#" data-view="rotas">Roles mensuales</a></li>
           <li data-nav="calendar"><a href="#" data-view="calendar">Calendario</a></li>
-          <li data-nav="finance"><a href="#" data-view="finance">Finanzas</a></li>
+          ${showFinance ? `<li><a href="#" data-view="finance">Finanzas</a></li>` : ""}
 
           <li data-nav="divider"><hr align="center" width="20%"></li>
 
@@ -267,7 +267,7 @@ function applyChurchContextToShell() {
   const showMinistries = can("read", "ministries");
   const showRotas = can("read", "service_role_assignments") || can("read", "service_roles");
   const showCalendar = can("read", "calendar");
-  const showFinance = can("read", "finance_transactions");
+  const showFinance = can("read", "finance_categories") || can("read", "finance_transactions");
 
   setNavVisible("members", showMembers);
   setNavVisible("groups", showGroups);
@@ -326,8 +326,13 @@ function canView(view, showRotasComputed) {
   if (view === "ministries") return can("read", "ministries");
   if (view === "rotas") return !!showRotasComputed;
   if (view === "calendar") return can("read", "calendar");
-  if (view === "finance") return can("read", "finance");
-  if (view === "finance_transactions") return can("read", "finance_transactions");
+  if (view === "finance") {
+    if (!can("read", "finance_categories")) {
+      s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
+      return;
+    }
+    initFinanceView(church);
+  }
   return false;
 }
 
