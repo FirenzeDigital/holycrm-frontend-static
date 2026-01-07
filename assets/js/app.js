@@ -268,7 +268,7 @@ function applyChurchContextToShell() {
   const showRotas = can("read", "service_role_assignments") || can("read", "service_roles");
   const showCalendar = can("read", "calendar");
   const showFinance = can("read", "finance_categories") || can("read", "finance_transactions");
-
+  
   setNavVisible("members", showMembers);
   setNavVisible("groups", showGroups);
   setNavVisible("events", showEvents);
@@ -362,21 +362,6 @@ function navigateTo(view) {
   if (view === "calendar") return initCalendarView(church);
   if (view === "finance") return initFinanceView(church);
   if (view === "finance_transactions") return initFinanceView(church);
-  if (view === "finance") {
-    if (!can("read", "finance_categories")) {
-      s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
-      return;
-    }
-    initFinanceView(church);
-  }
-  if (view === "finance") {
-    if (!can("read", "finance_transactions")) {
-      s.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
-      return;
-    }
-    initFinanceView(church);
-  }
-
   // dashboard: no-op
 }
 
