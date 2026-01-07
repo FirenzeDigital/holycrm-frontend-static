@@ -69,38 +69,9 @@ function renderDynamicMenu() {
       `;
     });
   });
-  
-  // Re-attach ALL event listeners for the new menu items
-  attachMenuEventListeners();
+
 }
 
-function attachMenuEventListeners() {
-  // 1. Navigation click handlers
-  const links = root.querySelectorAll('.app-sidebar a[data-view]');
-  links.forEach(link => {
-    link.addEventListener('click', (e) => {
-      e.preventDefault();
-      const view = link.getAttribute('data-view');
-      navigateTo(view);
-    });
-  });
-  
-  // 2. Mobile drawer closing behavior (IMPORTANT!)
-  const sidebarLinks = root.querySelectorAll('.app-sidebar a[data-view]');
-  sidebarLinks.forEach((link) => {
-    link.addEventListener('click', () => {
-      // Close the mobile drawer when a menu item is clicked
-      document.body.classList.remove('sidebar-open');
-      
-      // Update the backdrop visibility
-      const backdrop = document.getElementById('drawer-backdrop');
-      if (backdrop) {
-        const isMobile = window.matchMedia('(max-width: 900px)').matches;
-        backdrop.style.display = isMobile ? 'none' : 'none';
-      }
-    });
-  });
-}
 
 function renderDynamicSections() {
   const mainContainer = root.querySelector('.app-main');
@@ -235,7 +206,7 @@ function renderShellOnce() {
     const isMobile = window.matchMedia("(max-width: 900px)").matches;
     const open = document.body.classList.contains("sidebar-open");
     if (!backdrop) return;
-    backdrop.style.display = isMobile && open ? "block" : "none";
+    backdrop.style.display = 'none';
   }
 
   if (toggleBtn) {
@@ -265,14 +236,6 @@ function renderShellOnce() {
     setBackdrop();
   });
 
-  // Close drawer when clicking a menu item (mobile)
-  const sidebarLinks = root.querySelectorAll(".app-sidebar a[data-view]");
-  sidebarLinks.forEach((l) => {
-    l.addEventListener("click", () => {
-      document.body.classList.remove("sidebar-open");
-      setBackdrop();
-    });
-  });
 
   setBackdrop();
 
