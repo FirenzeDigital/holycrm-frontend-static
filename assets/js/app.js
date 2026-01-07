@@ -123,35 +123,6 @@ function renderDynamicSections() {
   });
 }
 
-function navigateTo(view) {
-  // permissions gate
-  if (!shouldShowModule(view)) {
-    const section = root.querySelector(`.app-main section[data-view="${view}"]`);
-    if (section) {
-      section.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
-      showSection(view);
-      setActiveLink(view);
-    } else {
-      navigateTo('dashboard');
-    }
-    return;
-  }
-  
-  setActiveLink(view);
-  showSection(view);
-  
-  const church = currentChurchState || currentChurchFromStorage();
-  
-  // Module initialization
-  const module = MODULES[view];
-  if (module && module.initFunction && INIT_FUNCTIONS[view]) {
-    if (view === 'permissions') {
-      INIT_FUNCTIONS[view](church, churchesState);
-    } else {
-      INIT_FUNCTIONS[view](church);
-    }
-  }
-}
 
 async function init() {
   if (!pb.authStore.isValid) {
