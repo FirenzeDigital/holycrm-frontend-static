@@ -2,6 +2,76 @@
 // Import the actual can function from permissions.js
 import { can as checkPermission } from './permissions.js';
 
+// Define default permissions matrix directly in modules.js
+export const MODULE_PERMISSION_MATRIX = {
+  dashboard: {
+    admin: { c: false, r: true, u: false, d: false }, // Always visible, no CRUD
+    manager: { c: false, r: true, u: false, d: false },
+    volunteer: { c: false, r: true, u: false, d: false },
+    member: { c: false, r: true, u: false, d: false }
+  },
+  members: {
+    admin: { c: true, r: true, u: true, d: true },
+    manager: { c: true, r: true, u: true, d: true },
+    volunteer: { c: true, r: true, u: true, d: false },
+    member: { c: false, r: true, u: false, d: false }
+  },
+  groups: {
+    admin: { c: true, r: true, u: true, d: true },
+    manager: { c: true, r: true, u: true, d: true },
+    volunteer: { c: true, r: true, u: true, d: false },
+    member: { c: false, r: false, u: false, d: false }
+  },
+  events: {
+    admin: { c: true, r: true, u: true, d: true },
+    manager: { c: true, r: true, u: true, d: true },
+    volunteer: { c: true, r: true, u: true, d: false },
+    member: { c: false, r: false, u: false, d: false }
+  },
+  locations: {
+    admin: { c: true, r: true, u: true, d: true },
+    manager: { c: true, r: true, u: true, d: true },
+    volunteer: { c: true, r: true, u: true, d: false },
+    member: { c: false, r: false, u: false, d: false }
+  },
+  ministries: {
+    admin: { c: true, r: true, u: true, d: true },
+    manager: { c: true, r: true, u: true, d: true },
+    volunteer: { c: true, r: true, u: true, d: false },
+    member: { c: false, r: false, u: false, d: false }
+  },
+  rotas: {
+    admin: { c: true, r: true, u: true, d: true },
+    manager: { c: true, r: true, u: true, d: true },
+    volunteer: { c: false, r: false, u: false, d: false },
+    member: { c: false, r: false, u: false, d: false }
+  },
+  calendar: {
+    admin: { c: true, r: true, u: true, d: true },
+    manager: { c: true, r: true, u: true, d: true },
+    volunteer: { c: false, r: false, u: false, d: false },
+    member: { c: false, r: false, u: false, d: false }
+  },
+  finance: {
+    admin: { c: true, r: true, u: true, d: true },
+    manager: { c: true, r: true, u: true, d: true },
+    volunteer: { c: false, r: false, u: false, d: false },
+    member: { c: false, r: false, u: false, d: false }
+  },
+  users: {
+    admin: { c: true, r: true, u: true, d: true },
+    manager: { c: false, r: false, u: false, d: false },
+    volunteer: { c: false, r: false, u: false, d: false },
+    member: { c: false, r: false, u: false, d: false }
+  },
+  permissions: {
+    admin: { c: true, r: true, u: true, d: true },
+    manager: { c: false, r: false, u: false, d: false },
+    volunteer: { c: false, r: false, u: false, d: false },
+    member: { c: false, r: false, u: false, d: false }
+  }
+};
+
 export const MODULES = {
   dashboard: {
     id: 'dashboard',
@@ -95,6 +165,11 @@ export const MODULE_CATEGORIES = [
     moduleIds: ['users', 'permissions']
   }
 ];
+
+// Helper function to get default permissions for a module+role
+export function getModuleDefaultPermissions(moduleId, role) {
+  return MODULE_PERMISSION_MATRIX[moduleId]?.[role] || { c: false, r: false, u: false, d: false };
+}
 
 // Helper function to check if a module should be visible
 export function shouldShowModule(moduleId) {

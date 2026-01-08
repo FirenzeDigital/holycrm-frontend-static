@@ -1,68 +1,36 @@
 // assets/js/permissions.js
 import { pb } from "./auth.js";
+import { MODULE_PERMISSION_MATRIX, MODULES } from "./modules.js";
 
 const API_BASE = "https://pb-dev.holycrm.app/backend/";
 
-// Modules known to the frontend (source of truth for now)
-export const MODULES = [
-  { key: "members", name: "Personas" },
-  { key: "users", name: "Usuarios" },
-  { key: "permissions", name: "Permisos" },
-  { key: "events", name: "Eventos" },
-  { key: "event_attendance", name: "event_attendance" },
-  { key: "groups", name: "groups" },
-  { key: "group_memberships", name: "group_memberships" },
-  { key: "locations", name: "locations" },
-  { key: "ministries", name: "ministries" },
-  { key: "ministry_memberships", name: "ministry_memberships" },
-  { key: "ministry_activities", name: "ministry_activities" },
-  { key: "service_roles", name: "service_roles" },
-  { key: "service_role_assignments", name: "service_role_assignments" },
-  { key: "calendar", name: "calendar" },
-  { key: "finance", name: "finance" },
-  { key: "finance_transactions", name: "finance_transactions" },
-  { key: "finance_categories", name: "finance_categories" },
-];
+// Convert module permissions matrix to the format expected by permissions.js
+function getDefaultsFromMatrix() {
+  const DEFAULTS = {
+    admin: {},
+    manager: {},
+    volunteer: {},
+    member: {}
+  };
+  
+  // Populate defaults from the matrix
+  for (const [moduleId, permissions] of Object.entries(MODULE_PERMISSION_MATRIX)) {
+    for (const [role, perms] of Object.entries(permissions)) {
+      if (!DEFAULTS[role]) DEFAULTS[role] = {};
+      DEFAULTS[role][moduleId] = perms;
+    }
+  }
+  
+  // Add special cases for finance collections
+  DEFAULTS.admin.finance_categories = { c: true, r: true, u: true, d: true };
+  DEFAULTS.admin.finance_transactions = { c: true, r: true, u: true, d: true };
+  DEFAULTS.manager.finance_categories = { c: true, r: true, u: true, d: true };
+  DEFAULTS.manager.finance_transactions = { c: true, r: true, u: true, d: true };
+  
+  return DEFAULTS;
+}
 
-// Default permissions (Option C baseline)
-const DEFAULTS = {
-  admin: {
-    members:      { c: true,  r: true,  u: true,  d: true  },
-    users:        { c: true,  r: true,  u: true,  d: true  },
-    permissions:  { c: true,  r: true,  u: true,  d: true  }, // admin can manage ACL
-    events:          { c: true,  r: true,  u: true,  d: true  },
-    event_attendance:{ c: true,  r: true,  u: true,  d: true  },
-    groups:{ c: true,  r: true,  u: true,  d: true  },
-    group_memberships:{ c: true,  r: true,  u: true,  d: true  },
-    locations:{ c: true,  r: true,  u: true,  d: true  },
-    ministries:{ c: true,  r: true,  u: true,  d: true  },
-    ministry_memberships:{ c: true,  r: true,  u: true,  d: true  },
-    ministry_activities:{ c: true,  r: true,  u: true,  d: true  },
-    service_roles:{ c: true,  r: true,  u: true,  d: true  },
-    service_role_assignments:{ c: true,  r: true,  u: true,  d: true  },
-    calendar:{ c: true,  r: true,  u: true,  d: true  },
-    finance:{ c: true,  r: true,  u: true,  d: true  },
-    finance_transactions:{ c: true,  r: true,  u: true,  d: true  },
-    finance_categories:{ c: true,  r: true,  u: true,  d: true  },
-  },
-  manager: {
-    members:      { c: true,  r: true,  u: true,  d: true  },
-    users:        { c: false, r: false, u: false, d: false },
-    permissions:  { c: false, r: false, u: false, d: false }, // admin-only by default
-  },
-  volunteer: {
-    members:      { c: true,  r: true,  u: true,  d: false },
-    users:        { c: false, r: false, u: false, d: false },
-    permissions:  { c: false, r: false, u: false, d: false },
-  },
-  member: {
-    members:      { c: false, r: true,  u: false, d: false },
-    users:        { c: false, r: false, u: false, d: false },
-    permissions:  { c: false, r: false, u: false, d: false },
-    events:          { c: false, r: false, u: false, d: false },
-    event_attendance:{ c: false, r: false, u: false, d: false },
-  },
-};
+const DEFAULTS = getDefaultsFromMatrix();
 
 let effective = null;
 let effectiveRole = null;

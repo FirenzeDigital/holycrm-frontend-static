@@ -1,6 +1,7 @@
-// assets/js/permissions_ui.js - MOBILE-FIRST VERSION (FIXED)
+// assets/js/permissions_ui.js - UPDATED WITH BETTER CSS & CONSOLIDATION
 import { pb } from "./auth.js";
-import { MODULES, can, loadPermissionsForChurch } from "./permissions.js";
+import { can, loadPermissionsForChurch } from "./permissions.js";
+import { MODULES, MODULE_PERMISSION_MATRIX, getModuleDefaultPermissions } from "./modules.js";
 
 const ROLES = [
   { key: "admin", label: "Admin" },
@@ -20,52 +21,6 @@ let initialized = false;
 let currentOverrides = [];
 let currentChurch = null;
 
-// Helper function to get default permissions from DEFAULTS
-function getDefaultPermissions(role, moduleKey) {
-  // Import your DEFAULTS from permissions.js or recreate them here
-  const DEFAULTS = {
-    admin: {
-      members: { c: true, r: true, u: true, d: true },
-      users: { c: true, r: true, u: true, d: true },
-      permissions: { c: true, r: true, u: true, d: true },
-      events: { c: true, r: true, u: true, d: true },
-      event_attendance: { c: true, r: true, u: true, d: true },
-      groups: { c: true, r: true, u: true, d: true },
-      group_memberships: { c: true, r: true, u: true, d: true },
-      locations: { c: true, r: true, u: true, d: true },
-      ministries: { c: true, r: true, u: true, d: true },
-      ministry_memberships: { c: true, r: true, u: true, d: true },
-      ministry_activities: { c: true, r: true, u: true, d: true },
-      service_roles: { c: true, r: true, u: true, d: true },
-      service_role_assignments: { c: true, r: true, u: true, d: true },
-      calendar: { c: true, r: true, u: true, d: true },
-      finance: { c: true, r: true, u: true, d: true },
-      finance_transactions: { c: true, r: true, u: true, d: true },
-      finance_categories: { c: true, r: true, u: true, d: true },
-    },
-    manager: {
-      members: { c: true, r: true, u: true, d: true },
-      users: { c: false, r: false, u: false, d: false },
-      permissions: { c: false, r: false, u: false, d: false },
-    },
-    volunteer: {
-      members: { c: true, r: true, u: true, d: false },
-      users: { c: false, r: false, u: false, d: false },
-      permissions: { c: false, r: false, u: false, d: false },
-    },
-    member: {
-      members: { c: false, r: true, u: false, d: false },
-      users: { c: false, r: false, u: false, d: false },
-      permissions: { c: false, r: false, u: false, d: false },
-      events: { c: false, r: false, u: false, d: false },
-      event_attendance: { c: false, r: false, u: false, d: false },
-    },
-  };
-  
-  const roleDefaults = DEFAULTS[role] || {};
-  return roleDefaults[moduleKey] || { c: false, r: false, u: false, d: false };
-}
-
 export function initPermissionsView(church, churches = []) {
   const section = document.querySelector('section[data-view="permissions"]');
   if (!section) return;
@@ -82,7 +37,6 @@ export function initPermissionsView(church, churches = []) {
     initialized = true;
     injectMobileStyles();
     
-    // NEW MOBILE-FIRST HTML STRUCTURE
     section.innerHTML = `
       <h1>Permisos</h1>
 
@@ -222,6 +176,11 @@ export function initPermissionsView(church, churches = []) {
   }
 
   loadAndRender(church);
+}
+
+// Just update getDefaultPermissions to use the imported function:
+function getDefaultPermissions(role, moduleKey) {
+  return getModuleDefaultPermissions(moduleKey, role);
 }
 
 async function loadAndRender(church) {
@@ -568,7 +527,7 @@ function injectMobileStyles() {
     const style = document.createElement('style');
     style.id = 'mobile-permissions-styles';
     style.textContent = `
-      /* Permissions Mobile-First Styles */
+      /* Permissions Mobile-First Styles - IMPROVED VISIBILITY */
       .perm-header {
         display: flex;
         justify-content: space-between;
@@ -587,12 +546,13 @@ function injectMobileStyles() {
         background: rgba(255,255,255,0.1);
         border: 1px solid var(--border);
         cursor: pointer;
+        color: var(--text) !important; /* Ensure text is visible */
       }
       
       .text-btn {
         background: none;
         border: none;
-        color: var(--primary);
+        color: var(--primary) !important; /* Ensure text is visible */
         text-decoration: underline;
         cursor: pointer;
         padding: 0;
@@ -615,9 +575,10 @@ function injectMobileStyles() {
         font-size: 0.85rem;
         min-width: 60px;
         text-align: center;
+        color: var(--text) !important; /* Ensure text is visible */
       }
       
-      /* Role Selector */
+      /* Role Selector - IMPROVED VISIBILITY */
       .perm-role-selector-card {
         position: sticky;
         top: 0;
@@ -641,6 +602,7 @@ function injectMobileStyles() {
         border-radius: 10px;
         border: 1px solid var(--border);
         background: var(--surface-2);
+        color: var(--text) !important; /* Ensure text is visible */
       }
       
       .perm-role-tabs {
@@ -657,15 +619,22 @@ function injectMobileStyles() {
         cursor: pointer;
         transition: all 0.2s;
         font-size: 0.9rem;
+        color: var(--text) !important; /* Ensure text is visible */
+      }
+      
+      .perm-role-tab:hover {
+        background: rgba(37,99,235,0.05);
+        border-color: rgba(37,99,235,0.3);
       }
       
       .perm-role-tab.active {
-        background: var(--primary);
-        color: white;
-        border-color: var(--primary);
+        background: var(--primary) !important;
+        color: white !important;
+        border-color: var(--primary) !important;
+        font-weight: 600;
       }
       
-      /* Module Filters */
+      /* Module Filters - IMPROVED VISIBILITY */
       .perm-filter-card {
         margin-bottom: 12px;
       }
@@ -692,10 +661,12 @@ function injectMobileStyles() {
         font-size: 0.9rem;
         cursor: pointer;
         transition: all 0.2s;
+        color: var(--text) !important; /* Ensure text is visible */
       }
       
       .perm-filter-btn:hover {
         background: rgba(37,99,235,0.1);
+        border-color: rgba(37,99,235,0.3);
       }
       
       .perm-search input {
@@ -704,6 +675,7 @@ function injectMobileStyles() {
         border-radius: 10px;
         border: 1px solid var(--border);
         background: var(--surface-2);
+        color: var(--text) !important; /* Ensure text is visible */
       }
       
       /* Module Grid */
@@ -747,7 +719,7 @@ function injectMobileStyles() {
       
       .perm-override-badge {
         background: rgba(37,99,235,0.1);
-        color: var(--primary);
+        color: var(--primary) !important;
         padding: 2px 8px;
         border-radius: 999px;
         font-size: 0.75rem;
@@ -756,7 +728,7 @@ function injectMobileStyles() {
       
       .perm-default-badge {
         background: rgba(100,116,139,0.1);
-        color: var(--muted);
+        color: var(--muted) !important;
         padding: 2px 8px;
         border-radius: 999px;
         font-size: 0.75rem;
@@ -779,6 +751,7 @@ function injectMobileStyles() {
         background: rgba(255,255,255,0.5);
         cursor: pointer;
         transition: all 0.2s;
+        color: var(--text) !important; /* Ensure text is visible */
       }
       
       .perm-action-item:hover {
@@ -807,7 +780,7 @@ function injectMobileStyles() {
       .perm-loading {
         text-align: center;
         padding: 40px;
-        color: var(--muted);
+        color: var(--muted) !important;
       }
       
       /* Responsive Design */
@@ -857,6 +830,16 @@ function injectMobileStyles() {
         .perm-role-select-mobile {
           max-width: 100%;
         }
+      }
+      
+      /* Ensure all text is visible in cards */
+      .perm-module-card h4 {
+        color: var(--text) !important;
+        margin: 0;
+      }
+      
+      .perm-module-info small {
+        color: var(--muted) !important;
       }
     `;
     document.head.appendChild(style);
