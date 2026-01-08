@@ -52,7 +52,13 @@ export const MODULE_PERMISSION_MATRIX = {
     volunteer: { c: false, r: false, u: false, d: false },
     member: { c: false, r: false, u: false, d: false }
   },
-  finance: {
+  finance_transactions: {
+    admin: { c: true, r: true, u: true, d: true },
+    manager: { c: true, r: true, u: true, d: true },
+    volunteer: { c: false, r: false, u: false, d: false },
+    member: { c: false, r: false, u: false, d: false }
+  },
+  finance_categories: {
     admin: { c: true, r: true, u: true, d: true },
     manager: { c: true, r: true, u: true, d: true },
     volunteer: { c: false, r: false, u: false, d: false },
