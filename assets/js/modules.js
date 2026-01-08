@@ -129,12 +129,19 @@ export const MODULES = {
     defaultPermission: 'read:calendar',
     initFunction: 'initCalendarView'
   },
-  finance: {
-    id: 'finance',
-    label: 'Finanzas',
-    icon: '💰',
+  finance_records: {
+    id: 'finance_records',
+    label: 'Movimientos',
+    icon: '💳',
+    defaultPermission: 'read:finance_transactions',
+    initFunction: 'initFinanceRecordsView'
+  },
+  finance_categories: {
+    id: 'finance_categories',
+    label: 'Categorías',
+    icon: '🗂️',
     defaultPermission: 'read:finance_categories',
-    initFunction: 'initFinanceView'
+    initFunction: 'initFinanceCategoriesView'
   },
   users: {
     id: 'users',
@@ -160,6 +167,11 @@ export const MODULE_CATEGORIES = [
     moduleIds: ['dashboard', 'members', 'groups', 'events', 'locations', 'ministries', 'rotas', 'calendar', 'finance']
   },
   {
+    id: 'finance',
+    label: 'Finanzas',
+    moduleIds: ['finance_records', 'finance_categories']
+  },
+  {
     id: 'admin',
     label: 'Administration',
     moduleIds: ['users', 'permissions']
@@ -182,12 +194,7 @@ export function shouldShowModule(moduleId) {
   if (moduleId === 'rotas') {
     return checkPermission('read', 'service_role_assignments') || checkPermission('read', 'service_roles');
   }
-  
-  // Special case handling for finance - FIXED
-  if (moduleId === 'finance') {
-    return checkPermission('read', 'finance_categories') || checkPermission('read', 'finance_transactions');
-  }
-  
+    
   // Generic permission check - convert "read:members" to "read", "members"
   const [action, resource] = module.defaultPermission.split(':');
   return checkPermission(action, resource);

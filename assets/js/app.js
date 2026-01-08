@@ -13,7 +13,8 @@ import { initLocationsView } from "./locations.js";
 import { initMinistriesView } from "./ministries.js";
 import { initRotasView } from "./rotas.js";
 import { initCalendarView } from "./calendar.js";
-import { initFinanceView } from "./finance.js";
+import { initFinanceRecordsView } from "./finance_records.js";
+import { initFinanceCategoriesView } from "./finance_categories.js";
 
 // Map module IDs to their init functions
 const INIT_FUNCTIONS = {
@@ -26,7 +27,8 @@ const INIT_FUNCTIONS = {
   ministries: initMinistriesView,
   rotas: initRotasView,
   calendar: initCalendarView,
-  finance: initFinanceView
+  finance_records: initFinanceRecordsView,
+  finance_categories: initFinanceCategoriesView
 };
 
 const root = document.getElementById("app");
