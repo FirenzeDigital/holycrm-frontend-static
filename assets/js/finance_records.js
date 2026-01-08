@@ -231,7 +231,7 @@ async function saveTx(e) {
     church: currentChurchId,
     date: document.getElementById("fin-date").value,
     category: catId,
-    direction: cat.kind,
+    direction: cat.direction,
     concept: document.getElementById("fin-concept").value,
     amount: Number(document.getElementById("fin-amount").value),
     currency: document.getElementById("fin-currency").value

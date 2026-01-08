@@ -20,7 +20,7 @@ let cachedTransactions = [];
 export async function initFinanceCategoriesView(church) {
   if (!church) return;
 
-  const section = document.querySelector('section[data-view="finance"]');
+  const section = document.querySelector('section[data-view="finance_categories"]');
   if (!section) return;
 
   if (
