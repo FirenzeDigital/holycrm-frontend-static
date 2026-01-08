@@ -1,4 +1,4 @@
-// assets/js/permissions_ui.js - UPDATED WITH BETTER CSS & CONSOLIDATION
+// assets/js/permissions_ui.js - CORRECTED VERSION
 import { pb } from "./auth.js";
 import { can, loadPermissionsForChurch } from "./permissions.js";
 import { MODULES, MODULE_PERMISSION_MATRIX, getModuleDefaultPermissions } from "./modules.js";
@@ -178,7 +178,11 @@ export function initPermissionsView(church, churches = []) {
   loadAndRender(church);
 }
 
-// Just update getDefaultPermissions to use the imported function:
+// Helper function to convert MODULES object to array
+function getModulesArray() {
+  return Object.values(MODULES);
+}
+
 function getDefaultPermissions(role, moduleKey) {
   return getModuleDefaultPermissions(moduleKey, role);
 }
@@ -228,14 +232,16 @@ function initModuleFilters() {
   const container = document.querySelector("#perm-filter-buttons");
   if (!container) return;
   
+  const modulesArray = getModulesArray();
+  
   // Group modules by prefix for better organization
   const moduleGroups = {
-    'main': MODULES.filter(m => ['members', 'events', 'groups', 'locations', 'ministries'].includes(m.key)),
-    'finance': MODULES.filter(m => m.key.includes('finance')),
-    'services': MODULES.filter(m => m.key.includes('service') || m.key === 'calendar'),
-    'admin': MODULES.filter(m => ['users', 'permissions'].includes(m.key)),
-    'other': MODULES.filter(m => !['members', 'events', 'groups', 'locations', 'ministries', 'users', 'permissions'].includes(m.key) && 
-                                 !m.key.includes('finance') && !m.key.includes('service') && m.key !== 'calendar')
+    'main': modulesArray.filter(m => ['members', 'events', 'groups', 'locations', 'ministries'].includes(m.id)),
+    'finance': modulesArray.filter(m => m.id.includes('finance')),
+    'services': modulesArray.filter(m => m.id.includes('service') || m.id === 'calendar'),
+    'admin': modulesArray.filter(m => ['users', 'permissions'].includes(m.id)),
+    'other': modulesArray.filter(m => !['members', 'events', 'groups', 'locations', 'ministries', 'users', 'permissions'].includes(m.id) && 
+                                 !m.id.includes('finance') && !m.id.includes('service') && m.id !== 'calendar')
   };
   
   let html = '';
@@ -294,12 +300,13 @@ function renderModulesForRole(role) {
     });
   
   // Create module cards
-  const cards = MODULES.map(mod => {
-    const override = overrideMap.get(mod.key);
+  const modulesArray = getModulesArray();
+  const cards = modulesArray.map(mod => {
+    const override = overrideMap.get(mod.id);
     const hasOverride = !!override;
     
     // Get default values for this role
-    const defaultValues = getDefaultPermissions(role, mod.key);
+    const defaultValues = getDefaultPermissions(role, mod.id);
     
     return createModuleCard(mod, role, override, defaultValues, hasOverride);
   }).join('');
@@ -348,11 +355,11 @@ function createModuleCard(module, role, override, defaults, hasOverride) {
   
   return `
     <div class="perm-module-card ${hasOverride ? 'perm-module-overridden' : ''}" 
-         data-module="${module.key}" 
+         data-module="${module.id}" 
          data-role="${role}"
          data-record-id="${recordId}">
       <div class="perm-module-header">
-        <h4>${module.name}</h4>
+        <h4>${module.label}</h4>
         <div class="perm-module-status">
           ${hasOverride ? '<span class="perm-override-badge">Override</span>' : '<span class="perm-default-badge">Default</span>'}
         </div>
@@ -361,7 +368,7 @@ function createModuleCard(module, role, override, defaults, hasOverride) {
         ${checkboxes}
       </div>
       <div class="perm-module-info">
-        <small class="muted">${module.key}</small>
+        <small class="muted">${module.id}</small>
       </div>
     </div>
   `;
@@ -384,15 +391,17 @@ function filterModules(searchTerm) {
 }
 
 function filterByGroup(groupName) {
+  const modulesArray = getModulesArray();
+  
   const groups = {
     'main': ['members', 'events', 'groups', 'locations', 'ministries'],
-    'finance': MODULES.filter(m => m.key.includes('finance')).map(m => m.key),
-    'services': [...MODULES.filter(m => m.key.includes('service')).map(m => m.key), 'calendar'],
+    'finance': modulesArray.filter(m => m.id.includes('finance')).map(m => m.id),
+    'services': [...modulesArray.filter(m => m.id.includes('service')).map(m => m.id), 'calendar'],
     'admin': ['users', 'permissions'],
-    'other': MODULES.filter(m => 
-      !['members', 'events', 'groups', 'locations', 'ministries', 'users', 'permissions'].includes(m.key) && 
-      !m.key.includes('finance') && !m.key.includes('service') && m.key !== 'calendar'
-    ).map(m => m.key)
+    'other': modulesArray.filter(m => 
+      !['members', 'events', 'groups', 'locations', 'ministries', 'users', 'permissions'].includes(m.id) && 
+      !m.id.includes('finance') && !m.id.includes('service') && m.id !== 'calendar'
+    ).map(m => m.id)
   };
   
   const cards = document.querySelectorAll(".perm-module-card");
