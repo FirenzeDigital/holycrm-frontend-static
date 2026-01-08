@@ -1,4 +1,4 @@
-// assets/js/permissions_ui.js - MOBILE-FIRST VERSION
+// assets/js/permissions_ui.js - MOBILE-FIRST VERSION (FIXED)
 import { pb } from "./auth.js";
 import { MODULES, can, loadPermissionsForChurch } from "./permissions.js";
 
@@ -20,9 +20,52 @@ let initialized = false;
 let currentOverrides = [];
 let currentChurch = null;
 
-// Call injectMobileStyles when initializing
-// church: current selected church
-// churches: all churches available to user (optional, for context)
+// Helper function to get default permissions from DEFAULTS
+function getDefaultPermissions(role, moduleKey) {
+  // Import your DEFAULTS from permissions.js or recreate them here
+  const DEFAULTS = {
+    admin: {
+      members: { c: true, r: true, u: true, d: true },
+      users: { c: true, r: true, u: true, d: true },
+      permissions: { c: true, r: true, u: true, d: true },
+      events: { c: true, r: true, u: true, d: true },
+      event_attendance: { c: true, r: true, u: true, d: true },
+      groups: { c: true, r: true, u: true, d: true },
+      group_memberships: { c: true, r: true, u: true, d: true },
+      locations: { c: true, r: true, u: true, d: true },
+      ministries: { c: true, r: true, u: true, d: true },
+      ministry_memberships: { c: true, r: true, u: true, d: true },
+      ministry_activities: { c: true, r: true, u: true, d: true },
+      service_roles: { c: true, r: true, u: true, d: true },
+      service_role_assignments: { c: true, r: true, u: true, d: true },
+      calendar: { c: true, r: true, u: true, d: true },
+      finance: { c: true, r: true, u: true, d: true },
+      finance_transactions: { c: true, r: true, u: true, d: true },
+      finance_categories: { c: true, r: true, u: true, d: true },
+    },
+    manager: {
+      members: { c: true, r: true, u: true, d: true },
+      users: { c: false, r: false, u: false, d: false },
+      permissions: { c: false, r: false, u: false, d: false },
+    },
+    volunteer: {
+      members: { c: true, r: true, u: true, d: false },
+      users: { c: false, r: false, u: false, d: false },
+      permissions: { c: false, r: false, u: false, d: false },
+    },
+    member: {
+      members: { c: false, r: true, u: false, d: false },
+      users: { c: false, r: false, u: false, d: false },
+      permissions: { c: false, r: false, u: false, d: false },
+      events: { c: false, r: false, u: false, d: false },
+      event_attendance: { c: false, r: false, u: false, d: false },
+    },
+  };
+  
+  const roleDefaults = DEFAULTS[role] || {};
+  return roleDefaults[moduleKey] || { c: false, r: false, u: false, d: false };
+}
+
 export function initPermissionsView(church, churches = []) {
   const section = document.querySelector('section[data-view="permissions"]');
   if (!section) return;
@@ -33,49 +76,137 @@ export function initPermissionsView(church, churches = []) {
   }
 
   const canWrite = can("update", "permissions") || can("create", "permissions") || can("delete", "permissions");
+  currentChurch = church;
 
   if (!initialized) {
     initialized = true;
     injectMobileStyles();
     
+    // NEW MOBILE-FIRST HTML STRUCTURE
     section.innerHTML = `
       <h1>Permisos</h1>
 
-      <div class="card">
-        <p>
-          Esto define overrides por iglesia en <code>acl_rules</code>.</br>
-          Si no hay overrides para una combinación (rol+módulo), se usan los defaults.
-        </p>
+      <div class="card perm-info-card">
+        <div class="perm-header">
+          <div>
+            <h3>Overrides de permisos</h3>
+            <p class="muted">Configura permisos específicos para: <strong>${escapeHtml(church.name)}</strong></p>
+          </div>
+          <div class="perm-header-actions">
+            <button id="perm-reload-btn" type="button" class="icon-btn" title="Recargar">↻</button>
+          </div>
+        </div>
 
-        <p>
-          <h3>Possible values</h3>
-          >> <strong><code>Add</code></strong>.	Allows for the addition of new records.</br>
-          >> <strong><code>View</code></strong>. Enables users to view or access information.</br>
-          >> <strong><code>Edit</code></strong>. Allows modification of existing data.</br>
-          >> <strong><code>Remove</code></strong>. Allows for the deletion of records.</br>	
-        </p>
-
-        <div class="perm-actions">
-          <button id="perm-reload-btn" type="button">Recargar</button>
-          ${canWrite ? `<button id="perm-save-btn" type="button">Guardar cambios</button>` : ""}
-          ${canWrite ? `<button id="perm-reset-btn" type="button" class="danger-btn">Reset a defaults</button>` : ""}
+        <div class="perm-info">
+          <p><strong>Los valores posibles:</strong></p>
+          <div class="perm-action-info">
+            <span class="perm-action-badge">+ Add</span> Crear nuevos registros
+          </div>
+          <div class="perm-action-info">
+            <span class="perm-action-badge">👁️ View</span> Ver/leer información
+          </div>
+          <div class="perm-action-info">
+            <span class="perm-action-badge">✏️ Edit</span> Modificar datos existentes
+          </div>
+          <div class="perm-action-info">
+            <span class="perm-action-badge">🗑️ Remove</span> Eliminar registros
+          </div>
+          <p class="muted" style="margin-top: 12px;">
+            <small>Si no hay override para un rol+módulo, se usan los valores por defecto.</small>
+          </p>
         </div>
 
         <div id="perm-status" class="success"></div>
         <div id="perm-error" class="error"></div>
       </div>
 
-      <div class="card">
-        <h2 id="perm-title"></h2>
-        <div class="perm-table-wrap">
-          <table class="perm-table" id="perm-table"></table>
+      <!-- Role Tabs for Desktop, Dropdown for Mobile -->
+      <div class="card perm-role-selector-card">
+        <div class="perm-role-header">
+          <h3>Seleccionar Rol</h3>
+          <select id="perm-role-select" class="perm-role-select-mobile">
+            ${ROLES.map(r => `<option value="${r.key}">${r.label}</option>`).join('')}
+          </select>
+        </div>
+        
+        <!-- Desktop Role Tabs -->
+        <div class="perm-role-tabs" id="perm-role-tabs">
+          ${ROLES.map(r => `
+            <button class="perm-role-tab ${r.key === 'admin' ? 'active' : ''}" data-role="${r.key}">${r.label}</button>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Module Filters -->
+      <div class="card perm-filter-card">
+        <div class="perm-filter-header">
+          <h3>Filtrar Módulos</h3>
+          <button id="perm-toggle-all" class="text-btn">Mostrar todos</button>
+        </div>
+        <div class="perm-filter-buttons" id="perm-filter-buttons">
+          <!-- Will be populated with module groups -->
+        </div>
+        <div class="perm-search">
+          <input type="text" id="perm-module-search" placeholder="Buscar módulo..." />
+        </div>
+      </div>
+
+      <!-- Permissions Grid -->
+      <div class="card perm-grid-card">
+        <div class="perm-grid-header">
+          <h3 id="perm-current-role">Permisos para: <span>Admin</span></h3>
+          <div class="perm-bulk-actions">
+            ${canWrite ? `
+              <button id="perm-save-btn" type="button" class="btn-primary">Guardar cambios</button>
+              <button id="perm-reset-btn" type="button" class="danger-btn">Resetear defaults</button>
+            ` : ''}
+          </div>
+        </div>
+        
+        <div id="perm-grid-container">
+          <!-- Will be populated with module cards -->
+          <div class="perm-loading">Cargando permisos...</div>
         </div>
       </div>
     `;
 
+    // Event Listeners
     section.querySelector("#perm-reload-btn").addEventListener("click", async () => {
       await loadAndRender(church);
     });
+
+    // Role selection
+    const roleSelect = section.querySelector("#perm-role-select");
+    const roleTabs = section.querySelector("#perm-role-tabs");
+    
+    roleSelect.addEventListener("change", (e) => {
+      const role = e.target.value;
+      updateRoleView(role);
+    });
+
+    roleTabs.addEventListener("click", (e) => {
+      if (e.target.classList.contains("perm-role-tab")) {
+        const role = e.target.dataset.role;
+        updateRoleView(role);
+      }
+    });
+
+    // Module search
+    const moduleSearch = section.querySelector("#perm-module-search");
+    if (moduleSearch) {
+      moduleSearch.addEventListener("input", (e) => {
+        filterModules(e.target.value);
+      });
+    }
+
+    // Toggle all modules
+    const toggleAllBtn = section.querySelector("#perm-toggle-all");
+    if (toggleAllBtn) {
+      toggleAllBtn.addEventListener("click", () => {
+        filterModules('');
+        if (moduleSearch) moduleSearch.value = '';
+      });
+    }
 
     if (canWrite) {
       section.querySelector("#perm-save-btn").addEventListener("click", async () => {
@@ -90,17 +221,21 @@ export function initPermissionsView(church, churches = []) {
     }
   }
 
-  const title = section.querySelector("#perm-title");
-  if (title) title.textContent = `Overrides de permisos en: ${church.name}`;
-
   loadAndRender(church);
 }
 
 async function loadAndRender(church) {
   const section = document.querySelector('section[data-view="permissions"]');
+  if (!section) return;
+  
   const status = section.querySelector("#perm-status");
   const error = section.querySelector("#perm-error");
   const gridContainer = section.querySelector("#perm-grid-container");
+
+  if (!gridContainer) {
+    console.error("perm-grid-container not found! Check your HTML structure.");
+    return;
+  }
 
   status.textContent = "";
   error.textContent = "";
@@ -113,20 +248,26 @@ async function loadAndRender(church) {
       sort: "role,module_key",
     });
     
+    // Initialize module filters
+    initModuleFilters();
+    
     // Render for current role (default: admin)
     const currentRole = section.querySelector(".perm-role-tab.active")?.dataset.role || "admin";
-    renderModulesForRole(currentRole);
+    updateRoleView(currentRole);
     
     status.textContent = "Permisos cargados correctamente";
   } catch (err) {
-    console.error(err);
+    console.error("Error loading permissions:", err);
     error.textContent = "No se pudieron cargar los overrides.";
-    gridContainer.innerHTML = `<div class="perm-error">Error cargando permisos: ${err.message}</div>`;
+    if (gridContainer) {
+      gridContainer.innerHTML = `<div class="perm-error">Error cargando permisos: ${err.message}</div>`;
+    }
   }
 }
 
 function initModuleFilters() {
   const container = document.querySelector("#perm-filter-buttons");
+  if (!container) return;
   
   // Group modules by prefix for better organization
   const moduleGroups = {
@@ -168,9 +309,13 @@ function updateRoleView(role) {
   const currentRoleSpan = document.querySelector("#perm-current-role span");
   
   tabs.forEach(tab => tab.classList.remove("active"));
-  document.querySelector(`.perm-role-tab[data-role="${role}"]`)?.classList.add("active");
-  roleSelect.value = role;
-  currentRoleSpan.textContent = ROLES.find(r => r.key === role)?.label || role;
+  const activeTab = document.querySelector(`.perm-role-tab[data-role="${role}"]`);
+  if (activeTab) activeTab.classList.add("active");
+  
+  if (roleSelect) roleSelect.value = role;
+  if (currentRoleSpan) {
+    currentRoleSpan.textContent = ROLES.find(r => r.key === role)?.label || role;
+  }
   
   // Render modules for this role
   renderModulesForRole(role);
@@ -178,6 +323,8 @@ function updateRoleView(role) {
 
 function renderModulesForRole(role) {
   const container = document.querySelector("#perm-grid-container");
+  if (!container) return;
+  
   const overrideMap = new Map();
   
   // Build override map for this role
@@ -192,8 +339,7 @@ function renderModulesForRole(role) {
     const override = overrideMap.get(mod.key);
     const hasOverride = !!override;
     
-    // Get default values for this role from your DEFAULTS object
-    // (You might need to pass DEFAULTS or compute defaults differently)
+    // Get default values for this role
     const defaultValues = getDefaultPermissions(role, mod.key);
     
     return createModuleCard(mod, role, override, defaultValues, hasOverride);
@@ -205,8 +351,10 @@ function renderModulesForRole(role) {
   container.querySelectorAll(".perm-action-checkbox").forEach(cb => {
     cb.addEventListener("change", function() {
       const card = this.closest(".perm-module-card");
-      card.dataset.touched = "1";
-      card.classList.add("perm-module-modified");
+      if (card) {
+        card.dataset.touched = "1";
+        card.classList.add("perm-module-modified");
+      }
     });
   });
 }
@@ -265,7 +413,7 @@ function filterModules(searchTerm) {
   const search = searchTerm.toLowerCase();
   
   cards.forEach(card => {
-    const moduleName = card.querySelector("h4").textContent.toLowerCase();
+    const moduleName = card.querySelector("h4")?.textContent.toLowerCase() || '';
     const moduleKey = card.dataset.module.toLowerCase();
     
     if (search === '' || moduleName.includes(search) || moduleKey.includes(search)) {
@@ -300,16 +448,10 @@ function filterByGroup(groupName) {
   });
 }
 
-// Helper function to get default permissions (you'll need to implement this based on your DEFAULTS)
-function getDefaultPermissions(role, moduleKey) {
-  // This should return the default permissions for this role+module
-  // You'll need to import or have access to your DEFAULTS object
-  // For now, returning defaults from the original permissions.js logic
-  return { c: false, r: false, u: false, d: false }; // Placeholder
-}
-
 async function saveOverrides(church) {
   const section = document.querySelector('section[data-view="permissions"]');
+  if (!section) return;
+  
   const status = section.querySelector("#perm-status");
   const error = section.querySelector("#perm-error");
   const currentRole = section.querySelector(".perm-role-tab.active")?.dataset.role || "admin";
@@ -385,6 +527,8 @@ async function saveOverrides(church) {
 
 async function resetOverrides(church) {
   const section = document.querySelector('section[data-view="permissions"]');
+  if (!section) return;
+  
   const status = section.querySelector("#perm-status");
   const error = section.querySelector("#perm-error");
 
@@ -442,6 +586,7 @@ function injectMobileStyles() {
         border-radius: 10px;
         background: rgba(255,255,255,0.1);
         border: 1px solid var(--border);
+        cursor: pointer;
       }
       
       .text-btn {
@@ -451,6 +596,7 @@ function injectMobileStyles() {
         text-decoration: underline;
         cursor: pointer;
         padding: 0;
+        font-size: 0.9rem;
       }
       
       .perm-action-info {
@@ -477,6 +623,7 @@ function injectMobileStyles() {
         top: 0;
         z-index: 10;
         background: var(--surface);
+        margin-bottom: 12px;
       }
       
       .perm-role-header {
@@ -509,6 +656,7 @@ function injectMobileStyles() {
         background: var(--surface-2);
         cursor: pointer;
         transition: all 0.2s;
+        font-size: 0.9rem;
       }
       
       .perm-role-tab.active {
@@ -518,6 +666,10 @@ function injectMobileStyles() {
       }
       
       /* Module Filters */
+      .perm-filter-card {
+        margin-bottom: 12px;
+      }
+      
       .perm-filter-header {
         display: flex;
         justify-content: space-between;
@@ -539,6 +691,7 @@ function injectMobileStyles() {
         background: var(--surface-2);
         font-size: 0.9rem;
         cursor: pointer;
+        transition: all 0.2s;
       }
       
       .perm-filter-btn:hover {
@@ -598,6 +751,7 @@ function injectMobileStyles() {
         padding: 2px 8px;
         border-radius: 999px;
         font-size: 0.75rem;
+        font-weight: 600;
       }
       
       .perm-default-badge {
@@ -606,6 +760,7 @@ function injectMobileStyles() {
         padding: 2px 8px;
         border-radius: 999px;
         font-size: 0.75rem;
+        font-weight: 600;
       }
       
       .perm-module-actions {
@@ -623,6 +778,11 @@ function injectMobileStyles() {
         border-radius: 8px;
         background: rgba(255,255,255,0.5);
         cursor: pointer;
+        transition: all 0.2s;
+      }
+      
+      .perm-action-item:hover {
+        background: rgba(37,99,235,0.05);
       }
       
       .perm-action-default {
@@ -635,11 +795,13 @@ function injectMobileStyles() {
       
       .perm-action-label {
         flex: 1;
+        font-size: 0.9rem;
       }
       
       .perm-action-checkbox {
         width: 18px;
         height: 18px;
+        cursor: pointer;
       }
       
       .perm-loading {
@@ -685,10 +847,18 @@ function injectMobileStyles() {
         .perm-bulk-actions button {
           width: 100%;
         }
+        
+        .perm-role-header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 8px;
+        }
+        
+        .perm-role-select-mobile {
+          max-width: 100%;
+        }
       }
     `;
     document.head.appendChild(style);
   }
 }
-
-
