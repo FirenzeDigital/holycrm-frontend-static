@@ -20,6 +20,9 @@ let initialized = false;
 let currentOverrides = [];
 let currentChurch = null;
 
+// Call injectMobileStyles when initializing
+// church: current selected church
+// churches: all churches available to user (optional, for context)
 export function initPermissionsView(church, churches = []) {
   const section = document.querySelector('section[data-view="permissions"]');
   if (!section) return;
@@ -30,129 +33,48 @@ export function initPermissionsView(church, churches = []) {
   }
 
   const canWrite = can("update", "permissions") || can("create", "permissions") || can("delete", "permissions");
-  currentChurch = church;
 
   if (!initialized) {
     initialized = true;
-
+    injectMobileStyles();
+    
     section.innerHTML = `
       <h1>Permisos</h1>
 
-      <div class="card perm-info-card">
-        <div class="perm-header">
-          <div>
-            <h3>Overrides de permisos</h3>
-            <p class="muted">Configura permisos específicos para: <strong>${escapeHtml(church.name)}</strong></p>
-          </div>
-          <div class="perm-header-actions">
-            <button id="perm-reload-btn" type="button" class="icon-btn" title="Recargar">↻</button>
-          </div>
-        </div>
+      <div class="card">
+        <p>
+          Esto define overrides por iglesia en <code>acl_rules</code>.</br>
+          Si no hay overrides para una combinación (rol+módulo), se usan los defaults.
+        </p>
 
-        <div class="perm-info">
-          <p><strong>Los valores posibles:</strong></p>
-          <div class="perm-action-info">
-            <span class="perm-action-badge">+ Add</span> Crear nuevos registros
-          </div>
-          <div class="perm-action-info">
-            <span class="perm-action-badge">👁️ View</span> Ver/leer información
-          </div>
-          <div class="perm-action-info">
-            <span class="perm-action-badge">✏️ Edit</span> Modificar datos existentes
-          </div>
-          <div class="perm-action-info">
-            <span class="perm-action-badge">🗑️ Remove</span> Eliminar registros
-          </div>
-          <p class="muted" style="margin-top: 12px;">
-            <small>Si no hay override para un rol+módulo, se usan los valores por defecto.</small>
-          </p>
+        <p>
+          <h3>Possible values</h3>
+          >> <strong><code>Add</code></strong>.	Allows for the addition of new records.</br>
+          >> <strong><code>View</code></strong>. Enables users to view or access information.</br>
+          >> <strong><code>Edit</code></strong>. Allows modification of existing data.</br>
+          >> <strong><code>Remove</code></strong>. Allows for the deletion of records.</br>	
+        </p>
+
+        <div class="perm-actions">
+          <button id="perm-reload-btn" type="button">Recargar</button>
+          ${canWrite ? `<button id="perm-save-btn" type="button">Guardar cambios</button>` : ""}
+          ${canWrite ? `<button id="perm-reset-btn" type="button" class="danger-btn">Reset a defaults</button>` : ""}
         </div>
 
         <div id="perm-status" class="success"></div>
         <div id="perm-error" class="error"></div>
       </div>
 
-      <!-- Role Tabs for Desktop, Dropdown for Mobile -->
-      <div class="card perm-role-selector-card">
-        <div class="perm-role-header">
-          <h3>Seleccionar Rol</h3>
-          <select id="perm-role-select" class="perm-role-select-mobile">
-            ${ROLES.map(r => `<option value="${r.key}">${r.label}</option>`).join('')}
-          </select>
-        </div>
-        
-        <!-- Desktop Role Tabs -->
-        <div class="perm-role-tabs" id="perm-role-tabs">
-          ${ROLES.map(r => `
-            <button class="perm-role-tab" data-role="${r.key}">${r.label}</button>
-          `).join('')}
-        </div>
-      </div>
-
-      <!-- Module Filters -->
-      <div class="card perm-filter-card">
-        <div class="perm-filter-header">
-          <h3>Filtrar Módulos</h3>
-          <button id="perm-toggle-all" class="text-btn">Mostrar todos</button>
-        </div>
-        <div class="perm-filter-buttons" id="perm-filter-buttons">
-          <!-- Will be populated with module groups -->
-        </div>
-        <div class="perm-search">
-          <input type="text" id="perm-module-search" placeholder="Buscar módulo..." />
-        </div>
-      </div>
-
-      <!-- Permissions Grid -->
-      <div class="card perm-grid-card">
-        <div class="perm-grid-header">
-          <h3 id="perm-current-role">Permisos para: <span>Admin</span></h3>
-          <div class="perm-bulk-actions">
-            ${canWrite ? `
-              <button id="perm-save-btn" type="button" class="btn-primary">Guardar cambios</button>
-              <button id="perm-reset-btn" type="button" class="danger-btn">Resetear defaults</button>
-            ` : ''}
-          </div>
-        </div>
-        
-        <div id="perm-grid-container">
-          <!-- Will be populated with module cards -->
-          <div class="perm-loading">Cargando permisos...</div>
+      <div class="card">
+        <h2 id="perm-title"></h2>
+        <div class="perm-table-wrap">
+          <table class="perm-table" id="perm-table"></table>
         </div>
       </div>
     `;
 
-    // Event Listeners
     section.querySelector("#perm-reload-btn").addEventListener("click", async () => {
       await loadAndRender(church);
-    });
-
-    // Role selection
-    const roleSelect = section.querySelector("#perm-role-select");
-    const roleTabs = section.querySelector("#perm-role-tabs");
-    
-    roleSelect.addEventListener("change", (e) => {
-      const role = e.target.value;
-      updateRoleView(role);
-    });
-
-    roleTabs.addEventListener("click", (e) => {
-      if (e.target.classList.contains("perm-role-tab")) {
-        const role = e.target.dataset.role;
-        updateRoleView(role);
-      }
-    });
-
-    // Module search
-    const moduleSearch = section.querySelector("#perm-module-search");
-    moduleSearch.addEventListener("input", (e) => {
-      filterModules(e.target.value);
-    });
-
-    // Toggle all modules
-    section.querySelector("#perm-toggle-all").addEventListener("click", () => {
-      filterModules('');
-      moduleSearch.value = '';
     });
 
     if (canWrite) {
@@ -166,10 +88,10 @@ export function initPermissionsView(church, churches = []) {
         await resetOverrides(church);
       });
     }
-
-    // Initialize module filters
-    initModuleFilters();
   }
+
+  const title = section.querySelector("#perm-title");
+  if (title) title.textContent = `Overrides de permisos en: ${church.name}`;
 
   loadAndRender(church);
 }
@@ -769,78 +691,4 @@ function injectMobileStyles() {
   }
 }
 
-// Call injectMobileStyles when initializing
-// church: current selected church
-// churches: all churches available to user (optional, for context)
-export function initPermissionsView(church, churches = []) {
-  const section = document.querySelector('section[data-view="permissions"]');
-  if (!section) return;
 
-  if (!can("read", "permissions")) {
-    section.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a este módulo.</p>`;
-    return;
-  }
-
-  const canWrite = can("update", "permissions") || can("create", "permissions") || can("delete", "permissions");
-
-  if (!initialized) {
-    initialized = true;
-    injectMobileStyles();
-    
-    section.innerHTML = `
-      <h1>Permisos</h1>
-
-      <div class="card">
-        <p>
-          Esto define overrides por iglesia en <code>acl_rules</code>.</br>
-          Si no hay overrides para una combinación (rol+módulo), se usan los defaults.
-        </p>
-
-        <p>
-          <h3>Possible values</h3>
-          >> <strong><code>Add</code></strong>.	Allows for the addition of new records.</br>
-          >> <strong><code>View</code></strong>. Enables users to view or access information.</br>
-          >> <strong><code>Edit</code></strong>. Allows modification of existing data.</br>
-          >> <strong><code>Remove</code></strong>. Allows for the deletion of records.</br>	
-        </p>
-
-        <div class="perm-actions">
-          <button id="perm-reload-btn" type="button">Recargar</button>
-          ${canWrite ? `<button id="perm-save-btn" type="button">Guardar cambios</button>` : ""}
-          ${canWrite ? `<button id="perm-reset-btn" type="button" class="danger-btn">Reset a defaults</button>` : ""}
-        </div>
-
-        <div id="perm-status" class="success"></div>
-        <div id="perm-error" class="error"></div>
-      </div>
-
-      <div class="card">
-        <h2 id="perm-title"></h2>
-        <div class="perm-table-wrap">
-          <table class="perm-table" id="perm-table"></table>
-        </div>
-      </div>
-    `;
-
-    section.querySelector("#perm-reload-btn").addEventListener("click", async () => {
-      await loadAndRender(church);
-    });
-
-    if (canWrite) {
-      section.querySelector("#perm-save-btn").addEventListener("click", async () => {
-        await saveOverrides(church);
-      });
-
-      section.querySelector("#perm-reset-btn").addEventListener("click", async () => {
-        const ok = confirm("¿Borrar TODOS los overrides de permisos de esta iglesia y volver a defaults?");
-        if (!ok) return;
-        await resetOverrides(church);
-      });
-    }
-  }
-
-  const title = section.querySelector("#perm-title");
-  if (title) title.textContent = `Overrides de permisos en: ${church.name}`;
-
-  loadAndRender(church);
-}
