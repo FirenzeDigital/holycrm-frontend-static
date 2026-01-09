@@ -319,7 +319,7 @@ async function saveTransaction(e) {
       amount,
       currency,
       category: categoryId,
-      direction: category.direction,
+      direction: category.kind,
       concept,
     });
 
