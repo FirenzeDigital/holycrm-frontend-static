@@ -244,22 +244,27 @@ function renderCategorySelects() {
     `<option value="">Todas</option>` +
     cachedCategories.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
 
-  const catFilter = $("#fin-cat-filter");
-  const catSelect = $("#fin-cat");
+  // Use currentSection instead of $
+  const catFilter = currentSection.querySelector("#fin-cat-filter");
+  const catSelect = currentSection.querySelector("#fin-cat");
 
-  if (!catFilter || !catSelect) return;
+  if (!catFilter || !catSelect) {
+    console.error("Filter or select elements not found");
+    return;
+  }
 
   catFilter.innerHTML = opts;
   catSelect.innerHTML = cachedCategories
     .map(c => `<option value="${c.id}">${c.name}</option>`)
     .join("");
-
 }
 
 function renderTable() {
-  const body = $("#fin-body");
-  if (!body) return;
-  body.innerHTML = "";
+  const body = currentSection.querySelector("#fin-body");
+  if (!body) {
+    console.error("#fin-body not found in currentSection");
+    return;
+  }
 
   if (!cachedTransactions.length) {
     body.innerHTML = `<tr><td colspan="6">Sin movimientos</td></tr>`;
@@ -315,29 +320,33 @@ function renderTotals() {
 /* ========================================================= */
 
 function openModal(id = null) {
-  const form = $("#fin-form");
-  const modal = $("#fin-modal");
-  const title = $("#fin-modal-title");
+  const form = currentSection.querySelector("#fin-form");
+  const modal = currentSection.querySelector("#fin-modal");
+  const title = currentSection.querySelector("#fin-modal-title");
 
-  if (!form || !modal || !title) return;
+  if (!form || !modal || !title) {
+    console.error("Modal elements not found", { form: !!form, modal: !!modal, title: !!title });
+    return;
+  }
 
   editingTxId = id;
   form.reset();
-  $("#fin-error").textContent = "";
+  const errorEl = currentSection.querySelector("#fin-error");
+  if (errorEl) errorEl.textContent = "";
 
   if (id) {
     const t = cachedTransactions.find(x => x.id === id);
-    $("#fin-modal-title").textContent = "Editar transacción";
-    $("#fin-date").value = t.date;
-    $("#fin-cat").value = t.category;
-    $("#fin-concept").value = t.concept || "";
-    $("#fin-amount").value = (t.amount_cents / 100).toFixed(2);
-    $("#fin-currency").value = t.currency;
+    title.textContent = "Editar transacción";
+    currentSection.querySelector("#fin-date").value = t.date;
+    currentSection.querySelector("#fin-cat").value = t.category;
+    currentSection.querySelector("#fin-concept").value = t.concept || "";
+    currentSection.querySelector("#fin-amount").value = (t.amount_cents / 100).toFixed(2);
+    currentSection.querySelector("#fin-currency").value = t.currency;
   } else {
-    $("#fin-modal-title").textContent = "Nueva transacción";
+    title.textContent = "Nueva transacción";
   }
 
-  $("#fin-modal").style.display = "block";
+  modal.style.display = "block";
 }
 
 function closeModal() {
