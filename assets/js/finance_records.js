@@ -189,7 +189,7 @@ function renderTable() {
         <td>${r.direction}</td>
         <td>${r.expand?.category?.name || ""}</td>
         <td>${r.concept}</td>
-        <td>${sign}${r.amount} ${r.currency}</td>
+        <td>${sign}${(r.amount_cents / 100).toFixed(2)} ${r.currency}</td>
       </tr>
     `;
   });
@@ -199,13 +199,14 @@ function renderTotals() {
   let inc = 0, exp = 0;
 
   cachedTransactions.forEach(t => {
-    if (t.direction === "income") inc += t.amount;
-    else exp += t.amount;
+    if (t.direction === "income") inc += t.amount_cents;
+    else exp += t.amount_cents;
   });
 
-  document.getElementById("fin-income").textContent = inc.toFixed(2);
-  document.getElementById("fin-expense").textContent = exp.toFixed(2);
-  document.getElementById("fin-balance").textContent = (inc - exp).toFixed(2);
+  document.getElementById("fin-income").textContent = (inc / 100).toFixed(2);
+  document.getElementById("fin-expense").textContent = (exp / 100).toFixed(2);
+  document.getElementById("fin-balance").textContent = ((inc - exp) / 100).toFixed(2);
+  
 }
 
 /* ---------------- CRUD ---------------- */
@@ -227,13 +228,20 @@ async function saveTx(e) {
   const cat = cachedCategories.find(c => c.id === catId);
   if (!cat) return;
 
+  const amount = Number(document.getElementById("fin-amount").value);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    document.getElementById("fin-error").textContent =
+      "El monto debe ser mayor a cero.";
+    return;
+  }
+
   await pb.collection("finance_transactions").create({
-    church: currentChurchId,
+    church: [currentChurchId],
     date: document.getElementById("fin-date").value,
-    category: catId,
+    category: [catId],
     direction: cat.direction,
-    concept: document.getElementById("fin-concept").value,
-    amount: Number(document.getElementById("fin-amount").value),
+    amount_cents: Math.round(amount * 100),
     currency: document.getElementById("fin-currency").value
   });
 
