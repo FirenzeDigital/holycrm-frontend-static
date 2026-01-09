@@ -2,18 +2,21 @@
 import { pb } from "./auth.js";
 import { can } from "./permissions.js";
 
-const $ = id => {
-  const el = document.getElementById(id);
-  if (!el) console.warn(`Element #${id} not found`);
-  return el;
-};
-
+// Declare currentSection at the module level
+let currentSection = null;
 let currentChurchId = null;
-
 let cachedCategories = [];
 let cachedTransactions = [];
-
 let editingTxId = null;
+
+// Keep your $ function but update it to use currentSection
+const $ = id => {
+  const el = currentSection 
+    ? currentSection.querySelector(`#${id}`)
+    : document.getElementById(id);
+  if (!el && id) console.warn(`Element #${id} not found`);
+  return el;
+};
 
 /* ========================================================= */
 /* ENTRY POINT */
