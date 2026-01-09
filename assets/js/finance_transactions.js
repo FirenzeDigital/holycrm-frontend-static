@@ -30,7 +30,6 @@ export async function initFinanceRecordsView(church) {
     renderLayout(section);
   }
   wireEvents(section);
-  }
 
   await loadCategories();
   await loadTransactions();
