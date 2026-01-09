@@ -2,7 +2,6 @@
 import { pb } from "./auth.js";
 import { can } from "./permissions.js";
 
-let initialized = false;
 let currentChurchId = null;
 
 let cachedCategories = [];
@@ -27,8 +26,7 @@ export async function initFinanceRecordsView(church) {
 
   currentChurchId = church.id;
 
-  if (!initialized) {
-    initialized = true;
+  if (!section.querySelector("#fin-body")) {
     renderLayout(section);
     wireEvents(section);
   }
@@ -197,9 +195,16 @@ function renderCategorySelects() {
     `<option value="">Todas</option>` +
     cachedCategories.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
 
-  $("#fin-cat-filter").innerHTML = opts;
-  $("#fin-cat").innerHTML = cachedCategories
-    .map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+  const catFilter = $("#fin-cat-filter");
+  const catSelect = $("#fin-cat");
+
+  if (!catFilter || !catSelect) return;
+
+  catFilter.innerHTML = opts;
+  catSelect.innerHTML = cachedCategories
+    .map(c => `<option value="${c.id}">${c.name}</option>`)
+    .join("");
+
 }
 
 function renderTable() {
@@ -320,4 +325,4 @@ async function deleteTx(id) {
 /* UTIL */
 /* ========================================================= */
 
-const $ = id => document.getElementById(id);
+const $ = id => document.getElementById(id) || null;
