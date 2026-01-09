@@ -35,6 +35,9 @@ export async function initFinanceRecordsView(church) {
   
   if (!section) return;
 
+  // Set currentSection at the module level
+  currentSection = section;
+
   // Check permissions
   const hasPermission = can("read", "finance_transactions");
   console.log("Has permission for finance_transactions:", hasPermission);
@@ -70,10 +73,16 @@ export async function initFinanceRecordsView(church) {
 /* ========================================================= */
 
 async function loadCategories() {
-  cachedCategories = await pb.collection("finance_categories").getFullList({
-    filter: `church="${currentChurchId}" && active=true`,
-    sort: "sort,name"
-  });
+  try {
+    cachedCategories = await pb.collection("finance_categories").getFullList({
+      filter: `church="${currentChurchId}" && active=true`,
+      sort: "sort,name"
+    });
+    console.log(`Loaded ${cachedCategories.length} categories`);
+  } catch (error) {
+    console.error("Error loading categories:", error);
+    cachedCategories = [];
+  }
 }
 
 async function loadTransactions() {
@@ -222,19 +231,24 @@ function wireEvents(section) {
       openModal();
     });
   }
+  
   section.addEventListener("click", (e) => {
     if (e.target?.dataset?.close === "1") closeModal();
   });
 
-  section.querySelector("#fin-new")?.addEventListener("click", () => openModal());
-
-  section.querySelector("#fin-form")?.addEventListener("submit", saveTx);
+  const form = section.querySelector("#fin-form");
+  if (form) {
+    form.addEventListener("submit", saveTx);
+  }
 
   ["fin-from", "fin-to", "fin-cat-filter"].forEach(id => {
-    section.querySelector(`#${id}`)?.addEventListener("change", () => {
-      renderTable();
-      renderTotals();
-    });
+    const element = section.querySelector(`#${id}`);
+    if (element) {
+      element.addEventListener("change", () => {
+        renderTable();
+        renderTotals();
+      });
+    }
   });
 }
 
@@ -247,12 +261,11 @@ function renderCategorySelects() {
     `<option value="">Todas</option>` +
     cachedCategories.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
 
-  // Use currentSection instead of $
-  const catFilter = currentSection.querySelector("#fin-cat-filter");
-  const catSelect = currentSection.querySelector("#fin-cat");
+  const catFilter = $("#fin-cat-filter");
+  const catSelect = $("#fin-cat");
 
   if (!catFilter || !catSelect) {
-    console.error("Filter or select elements not found");
+    console.error("Category filter or select not found");
     return;
   }
 
@@ -263,11 +276,13 @@ function renderCategorySelects() {
 }
 
 function renderTable() {
-  const body = currentSection.querySelector("#fin-body");
+  const body = $("#fin-body");
   if (!body) {
-    console.error("#fin-body not found in currentSection");
+    console.error("#fin-body not found");
     return;
   }
+  
+  body.innerHTML = "";
 
   if (!cachedTransactions.length) {
     body.innerHTML = `<tr><td colspan="6">Sin movimientos</td></tr>`;
@@ -276,28 +291,29 @@ function renderTable() {
 
   cachedTransactions.forEach(t => {
     const sign = t.direction === "expense" ? "-" : "+";
-    body.innerHTML += `
-      <tr>
-        <td>${t.date}</td>
-        <td>${t.direction}</td>
-        <td>${t.expand?.category?.name || ""}</td>
-        <td>${t.concept || ""}</td>
-        <td>${sign}${(t.amount_cents / 100).toFixed(2)} ${t.currency}</td>
-        <td class="row-actions">
-          ${can("update", "finance_transactions") ? `<button data-edit="${t.id}">Editar</button>` : ""}
-          ${can("delete", "finance_transactions") ? `<button class="danger-btn" data-del="${t.id}">Eliminar</button>` : ""}
-        </td>
-      </tr>
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${t.date.split(' ')[0] || t.date}</td>
+      <td>${t.direction === "income" ? "Ingreso" : "Egreso"}</td>
+      <td>${t.expand?.category?.name || ""}</td>
+      <td>${t.concept || ""}</td>
+      <td>${sign}${(t.amount_cents / 100).toFixed(2)} ${t.currency}</td>
+      <td class="row-actions">
+        ${can("update", "finance_transactions") ? `<button data-edit="${t.id}">Editar</button>` : ""}
+        ${can("delete", "finance_transactions") ? `<button class="danger-btn" data-del="${t.id}">Eliminar</button>` : ""}
+      </td>
     `;
+    body.appendChild(row);
   });
 
-  body.querySelectorAll("[data-edit]").forEach(b =>
-    b.onclick = () => openModal(b.dataset.edit)
-  );
+  // Attach event listeners
+  body.querySelectorAll("[data-edit]").forEach(b => {
+    b.addEventListener("click", () => openModal(b.dataset.edit));
+  });
 
-  body.querySelectorAll("[data-del]").forEach(b =>
-    b.onclick = () => deleteTx(b.dataset.del)
-  );
+  body.querySelectorAll("[data-del]").forEach(b => {
+    b.addEventListener("click", () => deleteTx(b.dataset.del));
+  });
 }
 
 function renderTotals() {
@@ -305,7 +321,10 @@ function renderTotals() {
   const expEl = $("#fin-expense");
   const balEl = $("#fin-balance");
 
-  if (!incEl || !expEl || !balEl) return;
+  if (!incEl || !expEl || !balEl) {
+    console.error("Total elements not found");
+    return;
+  }
 
   let inc = 0, exp = 0;
   cachedTransactions.forEach(t => {
@@ -317,44 +336,53 @@ function renderTotals() {
   balEl.textContent = ((inc - exp) / 100).toFixed(2);
 }
 
-
 /* ========================================================= */
 /* CRUD */
 /* ========================================================= */
 
 function openModal(id = null) {
-  const form = currentSection.querySelector("#fin-form");
-  const modal = currentSection.querySelector("#fin-modal");
-  const title = currentSection.querySelector("#fin-modal-title");
+  if (!currentSection) {
+    console.error("currentSection is not defined!");
+    return;
+  }
+  
+  const form = $("#fin-form");
+  const modal = $("#fin-modal");
+  const title = $("#fin-modal-title");
 
   if (!form || !modal || !title) {
-    console.error("Modal elements not found", { form: !!form, modal: !!modal, title: !!title });
+    console.error("Modal elements not found");
     return;
   }
 
   editingTxId = id;
   form.reset();
-  const errorEl = currentSection.querySelector("#fin-error");
+  const errorEl = $("#fin-error");
   if (errorEl) errorEl.textContent = "";
 
   if (id) {
     const t = cachedTransactions.find(x => x.id === id);
     title.textContent = "Editar transacción";
-    currentSection.querySelector("#fin-date").value = t.date;
-    currentSection.querySelector("#fin-cat").value = t.category;
-    currentSection.querySelector("#fin-concept").value = t.concept || "";
-    currentSection.querySelector("#fin-amount").value = (t.amount_cents / 100).toFixed(2);
-    currentSection.querySelector("#fin-currency").value = t.currency;
+    $("#fin-date").value = t.date.split('T')[0]; // Format for date input
+    $("#fin-cat").value = t.category;
+    $("#fin-concept").value = t.concept || "";
+    $("#fin-amount").value = (t.amount_cents / 100).toFixed(2);
+    $("#fin-currency").value = t.currency;
   } else {
     title.textContent = "Nueva transacción";
+    // Set today's date as default
+    $("#fin-date").value = new Date().toISOString().split('T')[0];
   }
 
   modal.style.display = "block";
 }
 
 function closeModal() {
+  const modal = $("#fin-modal");
+  if (modal) {
+    modal.style.display = "none";
+  }
   editingTxId = null;
-  $("#fin-modal").style.display = "none";
 }
 
 async function saveTx(e) {
@@ -362,42 +390,68 @@ async function saveTx(e) {
 
   const cat = cachedCategories.find(c => c.id === $("#fin-cat").value);
   const amount = Number($("#fin-amount").value);
+  const date = $("#fin-date").value;
+  const concept = $("#fin-concept").value.trim();
 
-  if (!cat || amount <= 0) {
-    $("#fin-error").textContent = "Datos inválidos.";
+  if (!cat) {
+    $("#fin-error").textContent = "Selecciona una categoría.";
+    return;
+  }
+  
+  if (amount <= 0) {
+    $("#fin-error").textContent = "Monto debe ser mayor a 0.";
+    return;
+  }
+  
+  if (!date) {
+    $("#fin-error").textContent = "Fecha es requerida.";
+    return;
+  }
+  
+  if (!concept) {
+    $("#fin-error").textContent = "Concepto es requerido.";
     return;
   }
 
   const payload = {
-    church: [currentChurchId],
-    date: $("#fin-date").value,
-    category: [cat.id],
+    church: currentChurchId,
+    date: date,
+    category: cat.id,
     direction: cat.kind,
-    concept: $("#fin-concept").value,
+    concept: concept,
     amount_cents: Math.round(amount * 100),
     currency: $("#fin-currency").value
   };
 
-  editingTxId
-    ? await pb.collection("finance_transactions").update(editingTxId, payload)
-    : await pb.collection("finance_transactions").create(payload);
+  console.log("Saving transaction:", payload);
 
-  closeModal();
-  await loadTransactions();
-  renderTable();
-  renderTotals();
+  try {
+    if (editingTxId) {
+      await pb.collection("finance_transactions").update(editingTxId, payload);
+    } else {
+      await pb.collection("finance_transactions").create(payload);
+    }
+
+    closeModal();
+    await loadTransactions();
+    renderTable();
+    renderTotals();
+  } catch (error) {
+    console.error("Error saving transaction:", error);
+    $("#fin-error").textContent = error.message || "Error al guardar";
+  }
 }
 
 async function deleteTx(id) {
   if (!confirm("¿Eliminar movimiento?")) return;
-  await pb.collection("finance_transactions").delete(id);
-  await loadTransactions();
-  renderTable();
-  renderTotals();
+  
+  try {
+    await pb.collection("finance_transactions").delete(id);
+    await loadTransactions();
+    renderTable();
+    renderTotals();
+  } catch (error) {
+    console.error("Error deleting transaction:", error);
+    alert("Error al eliminar: " + error.message);
+  }
 }
-
-/* ========================================================= */
-/* UTIL */
-/* ========================================================= */
-
-
