@@ -34,9 +34,11 @@ export async function initFinanceRecordsView(church) {
   await loadCategories();
   await loadTransactions();
 
-  renderCategorySelects();
-  renderTable();
-  renderTotals();
+  if (section.querySelector("#fin-body")) {
+    renderCategorySelects();
+    renderTable();
+    renderTotals();
+  }
 }
 
 /* ========================================================= */
@@ -209,6 +211,7 @@ function renderCategorySelects() {
 
 function renderTable() {
   const body = $("#fin-body");
+  if (!body) return;
   body.innerHTML = "";
 
   if (!cachedTransactions.length) {
@@ -243,23 +246,36 @@ function renderTable() {
 }
 
 function renderTotals() {
+  const incEl = $("#fin-income");
+  const expEl = $("#fin-expense");
+  const balEl = $("#fin-balance");
+
+  if (!incEl || !expEl || !balEl) return;
+
   let inc = 0, exp = 0;
   cachedTransactions.forEach(t => {
     t.direction === "income" ? inc += t.amount_cents : exp += t.amount_cents;
   });
 
-  $("#fin-income").textContent = (inc / 100).toFixed(2);
-  $("#fin-expense").textContent = (exp / 100).toFixed(2);
-  $("#fin-balance").textContent = ((inc - exp) / 100).toFixed(2);
+  incEl.textContent = (inc / 100).toFixed(2);
+  expEl.textContent = (exp / 100).toFixed(2);
+  balEl.textContent = ((inc - exp) / 100).toFixed(2);
 }
+
 
 /* ========================================================= */
 /* CRUD */
 /* ========================================================= */
 
 function openModal(id = null) {
+  const form = $("#fin-form");
+  const modal = $("#fin-modal");
+  const title = $("#fin-modal-title");
+
+  if (!form || !modal || !title) return;
+
   editingTxId = id;
-  $("#fin-form").reset();
+  form.reset();
   $("#fin-error").textContent = "";
 
   if (id) {
