@@ -109,10 +109,12 @@ function bindEvents(section) {
 /* ---------------- Data ---------------- */
 
 async function loadCategories() {
-  cachedCategories = await pb.collection("finance_categories").getFullList({
-    filter: `church.id="${currentChurchId}"`,
-    sort: "sort,name"
-  });
+  cachedCategories = await pb
+    .collection("finance_categories")
+    .getFullList({
+      filter: `church="${currentChurchId}" && active=true`,
+      sort: "sort,name"
+    });
 }
 
 /* ---------------- Render ---------------- */

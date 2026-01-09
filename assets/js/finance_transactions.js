@@ -28,7 +28,8 @@ export async function initFinanceRecordsView(church) {
 
   if (!section.querySelector("#fin-body")) {
     renderLayout(section);
-    wireEvents(section);
+  }
+  wireEvents(section);
   }
 
   await loadCategories();
@@ -47,17 +48,19 @@ export async function initFinanceRecordsView(church) {
 
 async function loadCategories() {
   cachedCategories = await pb.collection("finance_categories").getFullList({
-    filter: `church.id="${currentChurchId}" && active=true`,
+    filter: `church="${currentChurchId}" && active=true`,
     sort: "sort,name"
   });
 }
 
 async function loadTransactions() {
-  cachedTransactions = await pb.collection("finance_transactions").getFullList({
-    filter: `church.id="${currentChurchId}"`,
-    expand: "category",
-    sort: "-date"
-  });
+  cachedTransactions = await pb
+    .collection("finance_transactions")
+    .getFullList({
+      filter: `church="${currentChurchId}"`,
+      expand: "category",
+      sort: "-date"
+    });
 }
 
 /* ========================================================= */
