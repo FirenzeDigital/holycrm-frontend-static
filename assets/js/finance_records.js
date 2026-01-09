@@ -7,9 +7,6 @@ let currentChurchId = null;
 
 let cachedCategories = [];
 let cachedTransactions = [];
-let cachedMembers = [];
-let cachedMinistries = [];
-let cachedEvents = [];
 
 let editingTxId = null;
 
@@ -33,25 +30,19 @@ export async function initFinanceRecordsView(church) {
   if (!initialized) {
     initialized = true;
     renderLayout(section);
-    bindEvents(section);
+    wireEvents(section);
   }
 
-  await Promise.all([
-    loadCategories(),
-    loadMembers(),
-    loadMinistries(),
-    loadEvents(),
-    loadTransactions()
-  ]);
+  await loadCategories();
+  await loadTransactions();
 
   renderCategorySelects();
-  renderAuxSelects();
   renderTable();
   renderTotals();
 }
 
 /* ========================================================= */
-/* DATA LOADERS */
+/* DATA */
 /* ========================================================= */
 
 async function loadCategories() {
@@ -61,31 +52,10 @@ async function loadCategories() {
   });
 }
 
-async function loadMembers() {
-  cachedMembers = await pb.collection("members").getFullList({
-    filter: `church.id="${currentChurchId}"`,
-    sort: "last_name,first_name"
-  }).catch(() => []);
-}
-
-async function loadMinistries() {
-  cachedMinistries = await pb.collection("ministries").getFullList({
-    filter: `church.id="${currentChurchId}"`,
-    sort: "name"
-  }).catch(() => []);
-}
-
-async function loadEvents() {
-  cachedEvents = await pb.collection("events").getFullList({
-    filter: `church.id="${currentChurchId}"`,
-    sort: "-date"
-  }).catch(() => []);
-}
-
 async function loadTransactions() {
   cachedTransactions = await pb.collection("finance_transactions").getFullList({
     filter: `church.id="${currentChurchId}"`,
-    expand: "category,member,ministry,event",
+    expand: "category",
     sort: "-date"
   });
 }
@@ -150,35 +120,40 @@ function renderModal() {
   return `
     <div id="fin-modal" class="modal" style="display:none">
       <div class="modal-backdrop" data-close="1"></div>
-      <div class="modal-card wide">
-        <form id="fin-form" class="modal-body">
+      <div class="modal-card">
+        <div class="modal-header">
           <h3 id="fin-modal-title">Transacción</h3>
+          <button type="button" class="modal-close" data-close="1">×</button>
+        </div>
 
-          <input type="date" id="fin-date" required>
-          <select id="fin-cat" required></select>
-          <input type="text" id="fin-concept" placeholder="Concepto" required>
-          <input type="number" id="fin-amount" min="0.01" step="0.01" required>
+        <form id="fin-form" class="modal-body">
+          <div class="field">
+            <span>Fecha</span>
+            <input type="date" id="fin-date" required>
+          </div>
 
-          <select id="fin-currency">
-            <option value="MXN">MXN</option>
-            <option value="USD">USD</option>
-          </select>
+          <div class="field">
+            <span>Categoría</span>
+            <select id="fin-cat" required></select>
+          </div>
 
-          <select id="fin-method">
-            <option value="">Método</option>
-            <option value="cash">Efectivo</option>
-            <option value="bank">Banco</option>
-            <option value="card">Tarjeta</option>
-            <option value="transfer">Transferencia</option>
-            <option value="other">Otro</option>
-          </select>
+          <div class="field">
+            <span>Concepto</span>
+            <input type="text" id="fin-concept" required>
+          </div>
 
-          <select id="fin-member"><option value="">Miembro</option></select>
-          <select id="fin-ministry"><option value="">Ministerio</option></select>
-          <select id="fin-event"><option value="">Evento</option></select>
+          <div class="field">
+            <span>Monto</span>
+            <input type="number" id="fin-amount" min="0.01" step="0.01" required>
+          </div>
 
-          <input type="text" id="fin-reference" placeholder="Referencia">
-          <textarea id="fin-notes" placeholder="Notas"></textarea>
+          <div class="field">
+            <span>Moneda</span>
+            <select id="fin-currency">
+              <option value="MXN">MXN</option>
+              <option value="USD">USD</option>
+            </select>
+          </div>
 
           <div id="fin-error" class="error"></div>
 
@@ -193,35 +168,42 @@ function renderModal() {
 }
 
 /* ========================================================= */
-/* SELECT POPULATION */
+/* EVENTS */
+/* ========================================================= */
+
+function wireEvents(section) {
+  section.addEventListener("click", (e) => {
+    if (e.target?.dataset?.close === "1") closeModal();
+  });
+
+  section.querySelector("#fin-new")?.addEventListener("click", () => openModal());
+
+  section.querySelector("#fin-form")?.addEventListener("submit", saveTx);
+
+  ["fin-from", "fin-to", "fin-cat-filter"].forEach(id => {
+    section.querySelector(`#${id}`)?.addEventListener("change", () => {
+      renderTable();
+      renderTotals();
+    });
+  });
+}
+
+/* ========================================================= */
+/* RENDER */
 /* ========================================================= */
 
 function renderCategorySelects() {
-  const opts = `<option value="">Todas</option>` +
+  const opts =
+    `<option value="">Todas</option>` +
     cachedCategories.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
 
-  fin("fin-cat-filter").innerHTML = opts;
-  fin("fin-cat").innerHTML = cachedCategories
+  $("#fin-cat-filter").innerHTML = opts;
+  $("#fin-cat").innerHTML = cachedCategories
     .map(c => `<option value="${c.id}">${c.name}</option>`).join("");
 }
 
-function renderAuxSelects() {
-  fin("fin-member").innerHTML += cachedMembers
-    .map(m => `<option value="${m.id}">${m.last_name} ${m.first_name}</option>`).join("");
-
-  fin("fin-ministry").innerHTML += cachedMinistries
-    .map(m => `<option value="${m.id}">${m.name}</option>`).join("");
-
-  fin("fin-event").innerHTML += cachedEvents
-    .map(e => `<option value="${e.id}">${e.title}</option>`).join("");
-}
-
-/* ========================================================= */
-/* TABLE & TOTALS (unchanged logic) */
-/* ========================================================= */
-
 function renderTable() {
-  const body = fin("fin-body");
+  const body = $("#fin-body");
   body.innerHTML = "";
 
   if (!cachedTransactions.length) {
@@ -229,20 +211,21 @@ function renderTable() {
     return;
   }
 
-  cachedTransactions.forEach(r => {
-    const sign = r.direction === "expense" ? "-" : "+";
+  cachedTransactions.forEach(t => {
+    const sign = t.direction === "expense" ? "-" : "+";
     body.innerHTML += `
       <tr>
-        <td>${r.date}</td>
-        <td>${r.direction}</td>
-        <td>${r.expand?.category?.name || ""}</td>
-        <td>${r.concept || ""}</td>
-        <td>${sign}${(r.amount_cents / 100).toFixed(2)} ${r.currency}</td>
-        <td>
-          ${can("update", "finance_transactions") ? `<button data-edit="${r.id}">Editar</button>` : ""}
-          ${can("delete", "finance_transactions") ? `<button class="danger-btn" data-del="${r.id}">Eliminar</button>` : ""}
+        <td>${t.date}</td>
+        <td>${t.direction}</td>
+        <td>${t.expand?.category?.name || ""}</td>
+        <td>${t.concept || ""}</td>
+        <td>${sign}${(t.amount_cents / 100).toFixed(2)} ${t.currency}</td>
+        <td class="row-actions">
+          ${can("update", "finance_transactions") ? `<button data-edit="${t.id}">Editar</button>` : ""}
+          ${can("delete", "finance_transactions") ? `<button class="danger-btn" data-del="${t.id}">Eliminar</button>` : ""}
         </td>
-      </tr>`;
+      </tr>
+    `;
   });
 
   body.querySelectorAll("[data-edit]").forEach(b =>
@@ -257,13 +240,12 @@ function renderTable() {
 function renderTotals() {
   let inc = 0, exp = 0;
   cachedTransactions.forEach(t => {
-    if (t.direction === "income") inc += t.amount_cents;
-    else exp += t.amount_cents;
+    t.direction === "income" ? inc += t.amount_cents : exp += t.amount_cents;
   });
 
-  fin("fin-income").textContent = (inc / 100).toFixed(2);
-  fin("fin-expense").textContent = (exp / 100).toFixed(2);
-  fin("fin-balance").textContent = ((inc - exp) / 100).toFixed(2);
+  $("#fin-income").textContent = (inc / 100).toFixed(2);
+  $("#fin-expense").textContent = (exp / 100).toFixed(2);
+  $("#fin-balance").textContent = ((inc - exp) / 100).toFixed(2);
 }
 
 /* ========================================================= */
@@ -272,53 +254,48 @@ function renderTotals() {
 
 function openModal(id = null) {
   editingTxId = id;
-  fin("fin-form").reset();
+  $("#fin-form").reset();
+  $("#fin-error").textContent = "";
 
   if (id) {
     const t = cachedTransactions.find(x => x.id === id);
-    fin("fin-date").value = t.date;
-    fin("fin-cat").value = t.category;
-    fin("fin-concept").value = t.concept || "";
-    fin("fin-amount").value = (t.amount_cents / 100).toFixed(2);
-    fin("fin-currency").value = t.currency;
-    fin("fin-method").value = t.method || "";
-    fin("fin-reference").value = t.reference || "";
-    fin("fin-notes").value = t.notes || "";
-    fin("fin-member").value = t.member || "";
-    fin("fin-ministry").value = t.ministry || "";
-    fin("fin-event").value = t.event || "";
+    $("#fin-modal-title").textContent = "Editar transacción";
+    $("#fin-date").value = t.date;
+    $("#fin-cat").value = t.category;
+    $("#fin-concept").value = t.concept || "";
+    $("#fin-amount").value = (t.amount_cents / 100).toFixed(2);
+    $("#fin-currency").value = t.currency;
+  } else {
+    $("#fin-modal-title").textContent = "Nueva transacción";
   }
 
-  fin("fin-modal").style.display = "block";
+  $("#fin-modal").style.display = "block";
 }
 
 function closeModal() {
   editingTxId = null;
-  fin("fin-modal").style.display = "none";
+  $("#fin-modal").style.display = "none";
 }
 
 async function saveTx(e) {
   e.preventDefault();
 
-  const cat = cachedCategories.find(c => c.id === fin("fin-cat").value);
-  const amount = Number(fin("fin-amount").value);
+  const cat = cachedCategories.find(c => c.id === $("#fin-cat").value);
+  const amount = Number($("#fin-amount").value);
 
-  if (!cat || amount <= 0) return;
+  if (!cat || amount <= 0) {
+    $("#fin-error").textContent = "Datos inválidos.";
+    return;
+  }
 
   const payload = {
     church: [currentChurchId],
-    date: fin("fin-date").value,
+    date: $("#fin-date").value,
     category: [cat.id],
     direction: cat.kind,
-    concept: fin("fin-concept").value,
+    concept: $("#fin-concept").value,
     amount_cents: Math.round(amount * 100),
-    currency: fin("fin-currency").value,
-    method: fin("fin-method").value || null,
-    reference: fin("fin-reference").value || null,
-    notes: fin("fin-notes").value || null,
-    member: fin("fin-member").value ? [fin("fin-member").value] : null,
-    ministry: fin("fin-ministry").value ? [fin("fin-ministry").value] : null,
-    event: fin("fin-event").value ? [fin("fin-event").value] : null
+    currency: $("#fin-currency").value
   };
 
   editingTxId
@@ -343,4 +320,4 @@ async function deleteTx(id) {
 /* UTIL */
 /* ========================================================= */
 
-const fin = id => document.getElementById(id);
+const $ = id => document.getElementById(id);
