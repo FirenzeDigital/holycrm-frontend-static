@@ -1,21 +1,10 @@
-// assets/js/finance.js
+// assets/js/finance_categories.js
 import { pb } from "./auth.js";
 import { can } from "./permissions.js";
 
-
-/* ------------------------------------------------------------------ */
-/* State */
-/* ------------------------------------------------------------------ */
-
 let initialized = false;
 let currentChurchId = null;
-
 let cachedCategories = [];
-let cachedTransactions = [];
-
-/* ------------------------------------------------------------------ */
-/* PUBLIC ENTRY POINT — DO NOT BREAK */
-/* ------------------------------------------------------------------ */
 
 export async function initFinanceCategoriesView(church) {
   if (!church) return;
@@ -23,13 +12,8 @@ export async function initFinanceCategoriesView(church) {
   const section = document.querySelector('section[data-view="finance_categories"]');
   if (!section) return;
 
-  if (
-    !(
-      can("read", "finance_categories") ||
-      can("read", "finance_transactions")
-    )
-  ) {
-    section.innerHTML = `<h1>Sin permisos</h1><p>No tenés acceso a Finanzas.</p>`;
+  if (!can("read", "finance_categories")) {
+    section.innerHTML = `<h1>Sin permisos</h1>`;
     return;
   }
 
@@ -37,126 +21,72 @@ export async function initFinanceCategoriesView(church) {
 
   if (!initialized) {
     initialized = true;
-    renderBaseLayout(section);
-    bindStaticEvents(section);
+    renderLayout(section);
+    bindEvents(section);
   }
 
   await loadCategories();
-  await loadTransactions();
-
-  renderCategoriesSelect();
-  renderTransactionsTable();
-  renderTotals();
+  renderTable();
 }
 
-/* ------------------------------------------------------------------ */
-/* Layout */
-/* ------------------------------------------------------------------ */
+/* ---------------- Layout ---------------- */
 
-function renderBaseLayout(section) {
+function renderLayout(section) {
   section.innerHTML = `
-    <h1>Finanzas</h1>
+    <h1>Categorías financieras</h1>
 
-    <!-- Summary -->
-    <div class="dashboard-grid">
-      <div class="card dash-card">
-        <h3>Ingresos</h3>
-        <div class="dash-metric" id="fin-total-income">—</div>
-      </div>
-      <div class="card dash-card">
-        <h3>Egresos</h3>
-        <div class="dash-metric" id="fin-total-expense">—</div>
-      </div>
-      <div class="card dash-card">
-        <h3>Balance</h3>
-        <div class="dash-metric" id="fin-balance">—</div>
-      </div>
-    </div>
-
-    <!-- Toolbar -->
     <div class="card">
       <div class="members-toolbar">
-        <div class="members-search">
-          <input type="date" id="fin-from" />
-          <input type="date" id="fin-to" />
-          <select id="fin-category-filter">
-            <option value="">Todas las categorías</option>
-          </select>
-        </div>
-
+        <div></div>
         <div class="members-actions">
-          ${
-            can("create", "finance_transactions")
-              ? `<button id="fin-new-tx">Nueva transacción</button>`
-              : ""
-          }
+          ${can("create", "finance_categories") ? `<button id="cat-new">Nueva</button>` : ""}
         </div>
       </div>
     </div>
 
-    <!-- Transactions -->
     <div class="card">
-      <div class="table-wrap">
-        <table class="users-table">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Tipo</th>
-              <th>Categoría</th>
-              <th>Concepto</th>
-              <th>Monto</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="fin-tx-tbody">
-            <tr><td colspan="6">Cargando...</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <table class="users-table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Tipo</th>
+            <th>Activa</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="cat-body"></tbody>
+      </table>
     </div>
 
-    <!-- Transaction modal -->
-    <div id="fin-tx-modal" class="modal" style="display:none">
+    ${renderModal()}
+  `;
+}
+
+function renderModal() {
+  return `
+    <div id="cat-modal" class="modal" style="display:none">
       <div class="modal-backdrop" data-close="1"></div>
       <div class="modal-card">
-        <div class="modal-header">
-          <h3>Nueva transacción</h3>
-          <button class="modal-close" data-close="1">×</button>
-        </div>
+        <form id="cat-form" class="modal-body">
+          <h3 id="cat-title">Categoría</h3>
 
-        <form id="fin-tx-form" class="modal-body">
-          <div class="field">
-            <span>Fecha</span>
-            <input type="date" id="fin-tx-date" required />
-          </div>
+          <input type="hidden" id="cat-id">
+          <input type="text" id="cat-name" placeholder="Nombre" required>
 
-          <div class="field">
-            <span>Categoría</span>
-            <select id="fin-tx-category" required></select>
-          </div>
+          <select id="cat-kind">
+            <option value="income">Ingreso</option>
+            <option value="expense">Egreso</option>
+          </select>
 
-          <div class="field">
-            <span>Concepto</span>
-            <input type="text" id="fin-tx-concept" required />
-          </div>
+          <label>
+            <input type="checkbox" id="cat-active" checked>
+            Activa
+          </label>
 
-          <div class="field">
-            <span>Monto</span>
-            <input type="number" id="fin-tx-amount" min="0.01" step="0.01" required />
-          </div>
-
-          <div class="field">
-            <span>Moneda</span>
-            <select id="fin-tx-currency">
-              <option value="MXN">MXN</option>
-              <option value="USD">USD</option>
-            </select>
-          </div>
-
-          <div id="fin-tx-error" class="error"></div>
+          <div id="cat-error" class="error"></div>
 
           <div class="modal-footer">
-            <button type="button" data-close="1" class="btn-secondary">Cancelar</button>
+            <button type="button" data-close="1">Cancelar</button>
             <button type="submit">Guardar</button>
           </div>
         </form>
@@ -165,184 +95,113 @@ function renderBaseLayout(section) {
   `;
 }
 
-/* ------------------------------------------------------------------ */
-/* Events */
-/* ------------------------------------------------------------------ */
+/* ---------------- Events ---------------- */
 
-function bindStaticEvents(section) {
-  section.addEventListener("click", (e) => {
-    if (e.target?.dataset?.close === "1") {
-      closeTxModal();
-    }
+function bindEvents(section) {
+  section.addEventListener("click", e => {
+    if (e.target?.dataset?.close) closeModal();
   });
 
-  section.querySelector("#fin-new-tx")?.addEventListener("click", openTxModal);
-
-  section.querySelector("#fin-tx-form")?.addEventListener("submit", saveTransaction);
-
-  ["fin-from", "fin-to", "fin-category-filter"].forEach((id) => {
-    section.querySelector(`#${id}`)?.addEventListener("change", () => {
-      renderTransactionsTable();
-      renderTotals();
-    });
-  });
+  section.querySelector("#cat-new")?.addEventListener("click", () => openModal());
+  section.querySelector("#cat-form")?.addEventListener("submit", saveCategory);
 }
 
-/* ------------------------------------------------------------------ */
-/* Loaders */
-/* ------------------------------------------------------------------ */
+/* ---------------- Data ---------------- */
 
 async function loadCategories() {
   cachedCategories = await pb.collection("finance_categories").getFullList({
-    filter: `church.id = "${currentChurchId}" && active = true`,
-    sort: "sort,name",
+    filter: `church.id="${currentChurchId}"`,
+    sort: "sort,name"
   });
 }
 
-async function loadTransactions() {
-  cachedTransactions = await pb.collection("finance_transactions").getFullList({
-    filter: `church.id = "${currentChurchId}"`,
-    sort: "-date",
-    expand: "category",
+/* ---------------- Render ---------------- */
+
+function renderTable() {
+  const body = document.getElementById("cat-body");
+  body.innerHTML = "";
+
+  cachedCategories.forEach(c => {
+    body.innerHTML += `
+      <tr>
+        <td>${c.name}</td>
+        <td>${c.kind}</td>
+        <td>${c.active ? "Sí" : "No"}</td>
+        <td class="row-actions">
+          ${can("update", "finance_categories") ? `<button data-edit="${c.id}">Editar</button>` : ""}
+          ${can("delete", "finance_categories") ? `<button class="danger-btn" data-del="${c.id}">Eliminar</button>` : ""}
+        </td>
+      </tr>
+    `;
   });
-}
 
-/* ------------------------------------------------------------------ */
-/* Render */
-/* ------------------------------------------------------------------ */
-
-function renderCategoriesSelect() {
-  const sel1 = document.getElementById("fin-category-filter");
-  const sel2 = document.getElementById("fin-tx-category");
-
-  if (!sel1 || !sel2) return;
-
-  const opts = cachedCategories.map(
-    (c) => `<option value="${c.id}">${c.name}</option>`
+  body.querySelectorAll("[data-edit]").forEach(b =>
+    b.addEventListener("click", () => openModal(b.dataset.edit))
   );
 
-  sel1.innerHTML = `<option value="">Todas</option>` + opts.join("");
-  sel2.innerHTML = opts.join("");
+  body.querySelectorAll("[data-del]").forEach(b =>
+    b.addEventListener("click", () => deleteCategory(b.dataset.del))
+  );
 }
 
-function renderTransactionsTable() {
-  const tbody = document.getElementById("fin-tx-tbody");
-  if (!tbody) return;
+/* ---------------- CRUD ---------------- */
 
-  const from = document.getElementById("fin-from")?.value;
-  const to = document.getElementById("fin-to")?.value;
-  const cat = document.getElementById("fin-category-filter")?.value;
+function openModal(id = null) {
+  document.getElementById("cat-error").textContent = "";
+  document.getElementById("cat-form").reset();
 
-  let rows = cachedTransactions;
+  if (id) {
+    const c = cachedCategories.find(x => x.id === id);
+    document.getElementById("cat-id").value = id;
+    document.getElementById("cat-name").value = c.name;
+    document.getElementById("cat-kind").value = c.kind;
+    document.getElementById("cat-active").checked = c.active;
+  } else {
+    document.getElementById("cat-id").value = "";
+  }
 
-  if (from) rows = rows.filter((t) => t.date >= from);
-  if (to) rows = rows.filter((t) => t.date <= to);
-  if (cat) rows = rows.filter((t) => t.category === cat);
+  document.getElementById("cat-modal").style.display = "block";
+}
 
-  if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="6">Sin movimientos.</td></tr>`;
+function closeModal() {
+  document.getElementById("cat-modal").style.display = "none";
+}
+
+async function saveCategory(e) {
+  e.preventDefault();
+
+  const id = document.getElementById("cat-id").value;
+  const payload = {
+    church: [currentChurchId],
+    name: document.getElementById("cat-name").value.trim(),
+    kind: document.getElementById("cat-kind").value,
+    active: document.getElementById("cat-active").checked
+  };
+
+  if (id) {
+    await pb.collection("finance_categories").update(id, payload);
+  } else {
+    await pb.collection("finance_categories").create(payload);
+  }
+
+  closeModal();
+  await loadCategories();
+  renderTable();
+}
+
+async function deleteCategory(id) {
+  const used = await pb.collection("finance_transactions").getFirstListItem(
+    `category.id="${id}"`
+  ).catch(() => null);
+
+  if (used) {
+    alert("No se puede eliminar una categoría con movimientos asociados.");
     return;
   }
 
-  tbody.innerHTML = "";
+  if (!confirm("¿Eliminar categoría?")) return;
 
-  for (const t of rows) {
-    const tr = document.createElement("tr");
-
-    const sign = t.direction === "expense" ? "-" : "+";
-
-    tr.innerHTML = `
-      <td>${t.date}</td>
-      <td>${t.direction}</td>
-      <td>${t.expand?.category?.name || ""}</td>
-      <td>${escapeHtml(t.concept || "")}</td>
-      <td>${sign}${t.amount} ${t.currency}</td>
-      <td></td>
-    `;
-
-    tbody.appendChild(tr);
-  }
-}
-
-function renderTotals() {
-  let income = 0;
-  let expense = 0;
-
-  const from = document.getElementById("fin-from")?.value;
-  const to = document.getElementById("fin-to")?.value;
-  const cat = document.getElementById("fin-category-filter")?.value;
-
-  let rows = cachedTransactions;
-  if (from) rows = rows.filter((t) => t.date >= from);
-  if (to) rows = rows.filter((t) => t.date <= to);
-  if (cat) rows = rows.filter((t) => t.category === cat);
-
-  for (const t of rows) {
-    if (t.direction === "income") income += t.amount;
-    else expense += t.amount;
-  }
-
-  document.getElementById("fin-total-income").textContent = income.toFixed(2);
-  document.getElementById("fin-total-expense").textContent = expense.toFixed(2);
-  document.getElementById("fin-balance").textContent = (income - expense).toFixed(2);
-}
-
-/* ------------------------------------------------------------------ */
-/* Transactions CRUD */
-/* ------------------------------------------------------------------ */
-
-function openTxModal() {
-  document.getElementById("fin-tx-error").textContent = "";
-  document.getElementById("fin-tx-form").reset();
-  document.getElementById("fin-tx-modal").style.display = "block";
-}
-
-function closeTxModal() {
-  document.getElementById("fin-tx-modal").style.display = "none";
-}
-
-async function saveTransaction(e) {
-  e.preventDefault();
-
-  const date = document.getElementById("fin-tx-date").value;
-  const categoryId = document.getElementById("fin-tx-category").value;
-  const concept = document.getElementById("fin-tx-concept").value.trim();
-  const amount = Number(document.getElementById("fin-tx-amount").value);
-  const currency = document.getElementById("fin-tx-currency").value;
-
-  const category = cachedCategories.find((c) => c.id === categoryId);
-  if (!category) return;
-
-  try {
-    await pb.collection("finance_transactions").create({
-      church: currentChurchId,
-      date,
-      amount,
-      currency,
-      category: categoryId,
-      direction: category.kind,
-      concept,
-    });
-
-    closeTxModal();
-    await loadTransactions();
-    renderTransactionsTable();
-    renderTotals();
-  } catch (err) {
-    document.getElementById("fin-tx-error").textContent =
-      err?.message || "Error guardando transacción.";
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/* Utils */
-/* ------------------------------------------------------------------ */
-
-function escapeHtml(s) {
-  return String(s || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+  await pb.collection("finance_categories").delete(id);
+  await loadCategories();
+  renderTable();
 }

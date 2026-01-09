@@ -1,3 +1,4 @@
+// assets/js/finance_records.js
 import { pb } from "./auth.js";
 import { can } from "./permissions.js";
 
@@ -5,6 +6,11 @@ let initialized = false;
 let currentChurchId = null;
 let cachedCategories = [];
 let cachedTransactions = [];
+let editingTxId = null;
+
+/* ========================================================= */
+/* ENTRY POINT */
+/* ========================================================= */
 
 export async function initFinanceRecordsView(church) {
   if (!church) return;
@@ -33,7 +39,9 @@ export async function initFinanceRecordsView(church) {
   renderTotals();
 }
 
-/* ---------------- Layout ---------------- */
+/* ========================================================= */
+/* LAYOUT */
+/* ========================================================= */
 
 function renderLayout(section) {
   section.innerHTML = `
@@ -77,6 +85,7 @@ function renderLayout(section) {
             <th>Categoría</th>
             <th>Concepto</th>
             <th>Monto</th>
+            <th></th>
           </tr>
         </thead>
         <tbody id="fin-body"></tbody>
@@ -93,7 +102,7 @@ function renderModal() {
       <div class="modal-backdrop" data-close="1"></div>
       <div class="modal-card">
         <form id="fin-form" class="modal-body">
-          <h3>Nueva transacción</h3>
+          <h3 id="fin-modal-title">Nueva transacción</h3>
 
           <input type="date" id="fin-date" required>
           <select id="fin-cat" required></select>
@@ -117,17 +126,20 @@ function renderModal() {
   `;
 }
 
-/* ---------------- Events ---------------- */
+/* ========================================================= */
+/* EVENTS */
+/* ========================================================= */
 
 function bindEvents(section) {
   section.addEventListener("click", (e) => {
     if (e.target?.dataset?.close) closeModal();
   });
 
-  section.querySelector("#fin-new")?.addEventListener("click", openModal);
+  section.querySelector("#fin-new")?.addEventListener("click", () => openModal());
+
   section.querySelector("#fin-form")?.addEventListener("submit", saveTx);
 
-  ["fin-from", "fin-to", "fin-cat-filter"].forEach((id) => {
+  ["fin-from", "fin-to", "fin-cat-filter"].forEach(id => {
     section.querySelector(`#${id}`)?.addEventListener("change", () => {
       renderTable();
       renderTotals();
@@ -135,7 +147,9 @@ function bindEvents(section) {
   });
 }
 
-/* ---------------- Data ---------------- */
+/* ========================================================= */
+/* DATA */
+/* ========================================================= */
 
 async function loadCategories() {
   cachedCategories = await pb.collection("finance_categories").getFullList({
@@ -152,10 +166,13 @@ async function loadTransactions() {
   });
 }
 
-/* ---------------- Render ---------------- */
+/* ========================================================= */
+/* RENDER */
+/* ========================================================= */
 
 function renderCategorySelects() {
-  const opts = `<option value="">Todas</option>` +
+  const opts =
+    `<option value="">Todas</option>` +
     cachedCategories.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
 
   document.getElementById("fin-cat-filter").innerHTML = opts;
@@ -177,22 +194,35 @@ function renderTable() {
   if (cat) rows = rows.filter(r => r.category === cat);
 
   if (!rows.length) {
-    body.innerHTML = `<tr><td colspan="5">Sin movimientos</td></tr>`;
+    body.innerHTML = `<tr><td colspan="6">Sin movimientos</td></tr>`;
     return;
   }
 
   rows.forEach(r => {
     const sign = r.direction === "expense" ? "-" : "+";
+
     body.innerHTML += `
       <tr>
         <td>${r.date}</td>
         <td>${r.direction}</td>
         <td>${r.expand?.category?.name || ""}</td>
-        <td>${r.concept}</td>
+        <td>${r.concept || ""}</td>
         <td>${sign}${(r.amount_cents / 100).toFixed(2)} ${r.currency}</td>
+        <td class="row-actions">
+          ${can("update", "finance_transactions") ? `<button data-edit="${r.id}">Editar</button>` : ""}
+          ${can("delete", "finance_transactions") ? `<button class="danger-btn" data-del="${r.id}">Eliminar</button>` : ""}
+        </td>
       </tr>
     `;
   });
+
+  body.querySelectorAll("[data-edit]").forEach(b =>
+    b.addEventListener("click", () => openModal(b.dataset.edit))
+  );
+
+  body.querySelectorAll("[data-del]").forEach(b =>
+    b.addEventListener("click", () => deleteTx(b.dataset.del))
+  );
 }
 
 function renderTotals() {
@@ -206,18 +236,38 @@ function renderTotals() {
   document.getElementById("fin-income").textContent = (inc / 100).toFixed(2);
   document.getElementById("fin-expense").textContent = (exp / 100).toFixed(2);
   document.getElementById("fin-balance").textContent = ((inc - exp) / 100).toFixed(2);
-  
 }
 
-/* ---------------- CRUD ---------------- */
+/* ========================================================= */
+/* CRUD */
+/* ========================================================= */
 
-function openModal() {
+function openModal(id = null) {
+  editingTxId = id;
   document.getElementById("fin-error").textContent = "";
   document.getElementById("fin-form").reset();
+
+  const title = document.getElementById("fin-modal-title");
+
+  if (id) {
+    const tx = cachedTransactions.find(t => t.id === id);
+    if (!tx) return;
+
+    title.textContent = "Editar transacción";
+    document.getElementById("fin-date").value = tx.date;
+    document.getElementById("fin-cat").value = tx.category;
+    document.getElementById("fin-concept").value = tx.concept || "";
+    document.getElementById("fin-amount").value = (tx.amount_cents / 100).toFixed(2);
+    document.getElementById("fin-currency").value = tx.currency;
+  } else {
+    title.textContent = "Nueva transacción";
+  }
+
   document.getElementById("fin-modal").style.display = "block";
 }
 
 function closeModal() {
+  editingTxId = null;
   document.getElementById("fin-modal").style.display = "none";
 }
 
@@ -229,23 +279,37 @@ async function saveTx(e) {
   if (!cat) return;
 
   const amount = Number(document.getElementById("fin-amount").value);
-
   if (!Number.isFinite(amount) || amount <= 0) {
-    document.getElementById("fin-error").textContent =
-      "El monto debe ser mayor a cero.";
+    document.getElementById("fin-error").textContent = "Monto inválido.";
     return;
   }
 
-  await pb.collection("finance_transactions").create({
+  const payload = {
     church: [currentChurchId],
     date: document.getElementById("fin-date").value,
     category: [catId],
-    direction: cat.direction,
+    direction: cat.kind,
+    concept: document.getElementById("fin-concept").value,
     amount_cents: Math.round(amount * 100),
     currency: document.getElementById("fin-currency").value
-  });
+  };
+
+  if (editingTxId) {
+    await pb.collection("finance_transactions").update(editingTxId, payload);
+  } else {
+    await pb.collection("finance_transactions").create(payload);
+  }
 
   closeModal();
+  await loadTransactions();
+  renderTable();
+  renderTotals();
+}
+
+async function deleteTx(id) {
+  if (!confirm("¿Eliminar este movimiento?")) return;
+
+  await pb.collection("finance_transactions").delete(id);
   await loadTransactions();
   renderTable();
   renderTotals();
