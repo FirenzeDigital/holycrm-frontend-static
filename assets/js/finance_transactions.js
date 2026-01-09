@@ -2,6 +2,12 @@
 import { pb } from "./auth.js";
 import { can } from "./permissions.js";
 
+const $ = id => {
+  const el = document.getElementById(id);
+  if (!el) console.warn(`Element #${id} not found`);
+  return el;
+};
+
 let currentChurchId = null;
 
 let cachedCategories = [];
@@ -14,17 +20,29 @@ let editingTxId = null;
 /* ========================================================= */
 
 export async function initFinanceRecordsView(church) {
-  if (!church) return;
+  console.log("initFinanceRecordsView called with church:", church?.id);
+  
+  if (!church) {
+    console.error("No church provided!");
+    return;
+  }
 
   const section = document.querySelector('section[data-view="finance_transactions"]');
+  console.log("Section found:", !!section);
+  
   if (!section) return;
 
-  if (!can("read", "finance_transactions")) {
+  // Check permissions
+  const hasPermission = can("read", "finance_transactions");
+  console.log("Has permission for finance_transactions:", hasPermission);
+  
+  if (!hasPermission) {
     section.innerHTML = `<h1>Sin permisos</h1>`;
     return;
   }
 
   currentChurchId = church.id;
+  console.log("Current church ID:", currentChurchId);
 
   if (!section.querySelector("#fin-body")) {
     renderLayout(section);
@@ -35,9 +53,12 @@ export async function initFinanceRecordsView(church) {
   await loadTransactions();
 
   if (section.querySelector("#fin-body")) {
+    console.log("#fin-body exists after render");
     renderCategorySelects();
     renderTable();
     renderTotals();
+  } else {
+    console.error("#fin-body NOT found after render!");
   }
 }
 
@@ -53,13 +74,26 @@ async function loadCategories() {
 }
 
 async function loadTransactions() {
-  cachedTransactions = await pb
-    .collection("finance_transactions")
-    .getFullList({
-      filter: `church="${currentChurchId}"`,
+  console.log("Loading transactions for church:", currentChurchId);
+  
+  try {
+    cachedTransactions = await pb.collection("finance_transactions").getFullList({
+      filter: `church.id="${currentChurchId}"`,
       expand: "category",
       sort: "-date"
     });
+    
+    console.log(`Loaded ${cachedTransactions.length} transactions`);
+    console.log("Sample transaction:", cachedTransactions[0]);
+    
+    // Check if expand worked
+    if (cachedTransactions.length > 0) {
+      console.log("Expand category:", cachedTransactions[0].expand?.category);
+    }
+  } catch (error) {
+    console.error("Error loading transactions:", error);
+    cachedTransactions = [];
+  }
 }
 
 /* ========================================================= */
@@ -174,6 +208,17 @@ function renderModal() {
 /* ========================================================= */
 
 function wireEvents(section) {
+  console.log("Wiring events for finance section");
+  
+  const newButton = section.querySelector("#fin-new");
+  console.log("New button found:", !!newButton);
+  
+  if (newButton) {
+    newButton.addEventListener("click", () => {
+      console.log("New button clicked!");
+      openModal();
+    });
+  }
   section.addEventListener("click", (e) => {
     if (e.target?.dataset?.close === "1") closeModal();
   });
@@ -343,4 +388,4 @@ async function deleteTx(id) {
 /* UTIL */
 /* ========================================================= */
 
-const $ = id => document.getElementById(id) || null;
+
