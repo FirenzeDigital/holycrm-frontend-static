@@ -135,8 +135,8 @@ export const MODULES = {
     defaultPermission: 'read:calendar',
     initFunction: 'initCalendarView'
   },
-  finance_records: {
-    id: 'finance_records',
+  finance_transactions: {
+    id: 'finance_transactions',
     label: 'Movimientos',
     icon: '💳',
     defaultPermission: 'read:finance_transactions',
@@ -175,7 +175,7 @@ export const MODULE_CATEGORIES = [
   {
     id: 'finance',
     label: 'Finanzas',
-    moduleIds: ['finance_records', 'finance_categories']
+    moduleIds: ['finance_transactions', 'finance_categories']
   },
   {
     id: 'admin',

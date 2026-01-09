@@ -1,4 +1,4 @@
-// assets/js/finance_records.js
+// assets/js/finance_transactions.js
 import { pb } from "./auth.js";
 import { can } from "./permissions.js";
 
@@ -16,7 +16,7 @@ let editingTxId = null;
 export async function initFinanceRecordsView(church) {
   if (!church) return;
 
-  const section = document.querySelector('section[data-view="finance_records"]');
+  const section = document.querySelector('section[data-view="finance_transactions"]');
   if (!section) return;
 
   if (!can("read", "finance_transactions")) {
