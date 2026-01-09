@@ -10,11 +10,20 @@ let cachedTransactions = [];
 let editingTxId = null;
 
 // Keep your $ function but update it to use currentSection
-const $ = id => {
+const $ = (selector) => {
+  // Remove any leading #
+  const id = selector.replace(/^#+/, '');
+  
+  if (!id) {
+    console.warn("Empty selector passed to $()");
+    return null;
+  }
+  
   const el = currentSection 
     ? currentSection.querySelector(`#${id}`)
     : document.getElementById(id);
-  if (!el && id) console.warn(`Element #${id} not found`);
+    
+  if (!el) console.warn(`Element #${id} not found`);
   return el;
 };
 
@@ -261,8 +270,8 @@ function renderCategorySelects() {
     `<option value="">Todas</option>` +
     cachedCategories.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
 
-  const catFilter = $("#fin-cat-filter");
-  const catSelect = $("#fin-cat");
+  const catFilter = $("fin-cat-filter");
+  const catSelect = $("fin-cat");
 
   if (!catFilter || !catSelect) {
     console.error("Category filter or select not found");
@@ -276,7 +285,7 @@ function renderCategorySelects() {
 }
 
 function renderTable() {
-  const body = $("#fin-body");
+  const body = $("fin-body");
   if (!body) {
     console.error("#fin-body not found");
     return;
@@ -317,9 +326,9 @@ function renderTable() {
 }
 
 function renderTotals() {
-  const incEl = $("#fin-income");
-  const expEl = $("#fin-expense");
-  const balEl = $("#fin-balance");
+  const incEl = $("fin-income");
+  const expEl = $("fin-expense");
+  const balEl = $("fin-balance");
 
   if (!incEl || !expEl || !balEl) {
     console.error("Total elements not found");
@@ -346,9 +355,9 @@ function openModal(id = null) {
     return;
   }
   
-  const form = $("#fin-form");
-  const modal = $("#fin-modal");
-  const title = $("#fin-modal-title");
+  const form = $("fin-form");
+  const modal = $("fin-modal");
+  const title = $("fin-modal-title");
 
   if (!form || !modal || !title) {
     console.error("Modal elements not found");
@@ -357,28 +366,28 @@ function openModal(id = null) {
 
   editingTxId = id;
   form.reset();
-  const errorEl = $("#fin-error");
+  const errorEl = $("fin-error");
   if (errorEl) errorEl.textContent = "";
 
   if (id) {
     const t = cachedTransactions.find(x => x.id === id);
     title.textContent = "Editar transacción";
-    $("#fin-date").value = t.date.split('T')[0]; // Format for date input
-    $("#fin-cat").value = t.category;
-    $("#fin-concept").value = t.concept || "";
-    $("#fin-amount").value = (t.amount_cents / 100).toFixed(2);
-    $("#fin-currency").value = t.currency;
+    $("fin-date").value = t.date.split('T')[0]; // Format for date input
+    $("fin-cat").value = t.category;
+    $("fin-concept").value = t.concept || "";
+    $("fin-amount").value = (t.amount_cents / 100).toFixed(2);
+    $("fin-currency").value = t.currency;
   } else {
     title.textContent = "Nueva transacción";
     // Set today's date as default
-    $("#fin-date").value = new Date().toISOString().split('T')[0];
+    $("fin-date").value = new Date().toISOString().split('T')[0];
   }
 
   modal.style.display = "block";
 }
 
 function closeModal() {
-  const modal = $("#fin-modal");
+  const modal = $("fin-modal");
   if (modal) {
     modal.style.display = "none";
   }
@@ -388,28 +397,28 @@ function closeModal() {
 async function saveTx(e) {
   e.preventDefault();
 
-  const cat = cachedCategories.find(c => c.id === $("#fin-cat").value);
-  const amount = Number($("#fin-amount").value);
-  const date = $("#fin-date").value;
-  const concept = $("#fin-concept").value.trim();
+  const cat = cachedCategories.find(c => c.id === $("fin-cat").value);
+  const amount = Number($("fin-amount").value);
+  const date = $("fin-date").value;
+  const concept = $("fin-concept").value.trim();
 
   if (!cat) {
-    $("#fin-error").textContent = "Selecciona una categoría.";
+    $("fin-error").textContent = "Selecciona una categoría.";
     return;
   }
   
   if (amount <= 0) {
-    $("#fin-error").textContent = "Monto debe ser mayor a 0.";
+    $("fin-error").textContent = "Monto debe ser mayor a 0.";
     return;
   }
   
   if (!date) {
-    $("#fin-error").textContent = "Fecha es requerida.";
+    $("fin-error").textContent = "Fecha es requerida.";
     return;
   }
   
   if (!concept) {
-    $("#fin-error").textContent = "Concepto es requerido.";
+    $("fin-error").textContent = "Concepto es requerido.";
     return;
   }
 
@@ -420,7 +429,7 @@ async function saveTx(e) {
     direction: cat.kind,
     concept: concept,
     amount_cents: Math.round(amount * 100),
-    currency: $("#fin-currency").value
+    currency: $("fin-currency").value
   };
 
   console.log("Saving transaction:", payload);
@@ -438,7 +447,7 @@ async function saveTx(e) {
     renderTotals();
   } catch (error) {
     console.error("Error saving transaction:", error);
-    $("#fin-error").textContent = error.message || "Error al guardar";
+    $("fin-error").textContent = error.message || "Error al guardar";
   }
 }
 
