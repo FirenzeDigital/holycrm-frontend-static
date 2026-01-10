@@ -54,14 +54,28 @@ export class ModalForm {
   }
 
   renderFieldInput(field) {
-    switch (field.type) {
+    switch (field.componentType || field.type) { // Support both componentType and type
       case 'select':
-        const options = field.options.map(opt => 
-          `<option value="${opt.value}">${opt.label}</option>`
-        ).join('');
+        // FIX: Check if options exists and is an array
+        let options = '';
+        if (field.options && Array.isArray(field.options) && field.options.length > 0) {
+          options = field.options.map(opt => 
+            `<option value="${opt.value}">${opt.label}</option>`
+          ).join('');
+        } else {
+          // Empty select for dynamic options (like relations)
+          options = '<option value="">-- Seleccionar --</option>';
+        }
         return `<select id="${field.name}" ${field.required ? 'required' : ''}>${options}</select>`;
+      
+      case 'checkbox':
+        return `<input type="checkbox" id="${field.name}" ${field.checked ? 'checked' : ''}>`;
+      
+      case 'textarea':
+        return `<textarea id="${field.name}" ${field.required ? 'required' : ''}></textarea>`;
+      
       default:
-        return `<input type="${field.type}" id="${field.name}" ${field.required ? 'required' : ''}>`;
+        return `<input type="${field.type || 'text'}" id="${field.name}" ${field.required ? 'required' : ''}>`;
     }
   }
 
@@ -85,8 +99,21 @@ export class ModalForm {
     const data = {};
     this.fields.forEach(field => {
       const element = document.getElementById(field.name);
-      data[field.name] = field.type === 'number' ? 
-        parseFloat(element.value) : element.value;
+      if (element) {
+        if (field.componentType === 'checkbox') {
+          data[field.name] = element.checked;
+        } else if (field.type === 'number') {
+          data[field.name] = parseFloat(element.value) || 0;
+        } else if (field.type === 'json') {
+          try {
+            data[field.name] = JSON.parse(element.value);
+          } catch {
+            data[field.name] = element.value;
+          }
+        } else {
+          data[field.name] = element.value;
+        }
+      }
     });
     return data;
   }
@@ -95,7 +122,11 @@ export class ModalForm {
     this.fields.forEach(field => {
       const element = document.getElementById(field.name);
       if (element && data[field.name] !== undefined) {
-        element.value = data[field.name];
+        if (field.componentType === 'checkbox') {
+          element.checked = Boolean(data[field.name]);
+        } else {
+          element.value = data[field.name];
+        }
       }
     });
   }

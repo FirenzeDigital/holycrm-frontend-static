@@ -15,6 +15,15 @@ export class ModuleGenerator {
 
   // Parse PocketBase collection JSON
   parseCollectionSchema(pbJson) {
+    if (field.type === 'relation') {
+      fieldInfo.componentType = 'relation';
+      fieldInfo.inputType = 'select';
+      // We'll load options dynamically, so no static options
+    } else {
+      const mapped = this.fieldTypeMap[field.type] || { type: 'text', component: 'input' };
+      fieldInfo.componentType = mapped.component;
+      fieldInfo.inputType = mapped.type;
+    }
     const schema = {
       collectionName: pbJson.name,
       collectionId: pbJson.id,
@@ -79,120 +88,121 @@ export class ModuleGenerator {
 
   getModuleTemplate() {
     return `// Generated module for {{MODULE_LABEL}}
-import { can } from "./permissions.js";
-import { DataService } from "./core/DataService.js";
-import { CrudTable } from "./core/CrudTable.js";
-import { ModalForm } from "./core/ModalForm.js";
+  import { can } from "./permissions.js";
+  import { DataService } from "./core/DataService.js";
+  import { CrudTable } from "./core/CrudTable.js";
+  import { ModalForm } from "./core/ModalForm.js";
 
-let currentChurchId = null;
-let dataService;
-let table, modal;
+  let currentChurchId = null;
+  let dataService;
+  let table, modal;
 
-export async function init{{CAPITALIZED_MODULE_NAME}}View(church) {
-  if (!church) return;
-  currentChurchId = church.id;
+  export async function init{{CAPITALIZED_MODULE_NAME}}View(church) {
+    if (!church) return;
+    currentChurchId = church.id;
 
-  // Initialize service
-  dataService = new DataService('{{COLLECTION_NAME}}');
+    // Initialize service
+    dataService = new DataService('{{COLLECTION_NAME}}');
 
-  // Check permissions
-  const section = document.querySelector('section[data-view="{{MODULE_NAME}}"]');
-  if (!can("read", "{{PERMISSION_KEY}}")) {
-    section.innerHTML = '<h1>Sin permisos</h1>';
-    return;
+    // Check permissions
+    const section = document.querySelector('section[data-view="{{MODULE_NAME}}"]');
+    if (!can("read", "{{PERMISSION_KEY}}")) {
+      section.innerHTML = '<h1>Sin permisos</h1>';
+      return;
+    }
+
+    // Render layout once
+    if (!section.querySelector("#{{MODULE_NAME}}-body")) {
+      renderLayout(section);
+    }
+
+    // Initialize components
+    await initComponents();
+    await refreshData();
   }
 
-  // Render layout once
-  if (!section.querySelector("#{{MODULE_NAME}}-body")) {
-    renderLayout(section);
+  async function initComponents() {
+    // Configure and create table
+    table = new CrudTable({
+      container: '#{{MODULE_NAME}}-body',
+      headerContainer: '#{{MODULE_NAME}}-headers', // ADD THIS LINE
+      columns: {{TABLE_COLUMNS}},
+      canEdit: can("update", "{{PERMISSION_KEY}}"),
+      canDelete: can("delete", "{{PERMISSION_KEY}}"),
+      onEdit: openRecordModal,
+      onDelete: deleteRecord
+    });
+
+    // Configure and create modal form
+    modal = new ModalForm({
+      id: '{{MODULE_NAME}}-modal',
+      title: '{{MODULE_LABEL}}',
+      fields: {{FORM_FIELDS}},
+      onSubmit: saveRecord
+    });
+
+    // Wire up the "New" button
+    document.getElementById('{{MODULE_NAME}}-new')?.addEventListener('click', () => openRecordModal());
   }
 
-  // Initialize components
-  await initComponents();
-  await refreshData();
-}
-
-async function initComponents() {
-  // Configure and create table
-  table = new CrudTable({
-    container: '#{{MODULE_NAME}}-body',
-    columns: {{TABLE_COLUMNS}},
-    canEdit: can("update", "{{PERMISSION_KEY}}"),
-    canDelete: can("delete", "{{PERMISSION_KEY}}"),
-    onEdit: openRecordModal,
-    onDelete: deleteRecord
-  });
-
-  // Configure and create modal form
-  modal = new ModalForm({
-    id: '{{MODULE_NAME}}-modal',
-    title: '{{MODULE_LABEL}}',
-    fields: {{FORM_FIELDS}},
-    onSubmit: saveRecord
-  });
-
-  // Wire up the "New" button
-  document.getElementById('{{MODULE_NAME}}-new')?.addEventListener('click', () => openRecordModal());
-}
-
-async function refreshData() {
-  const data = await dataService.getList(currentChurchId);
-  table.render(data);
-}
-
-async function openRecordModal(id = null) {
-  if (id) {
-    const record = await dataService.getOne(id);
-    modal.open(record);
-  } else {
-    modal.open({});
+  async function refreshData() {
+    const data = await dataService.getList(currentChurchId);
+    table.render(data);
   }
-}
 
-async function saveRecord(data, id = null) {
-  const payload = {
-    ...data,
-    church: currentChurchId
-  };
-
-  if (id) {
-    await dataService.update(id, payload);
-  } else {
-    await dataService.create(payload);
+  async function openRecordModal(id = null) {
+    if (id) {
+      const record = await dataService.getOne(id);
+      modal.open(record);
+    } else {
+      modal.open({});
+    }
   }
-  
-  await refreshData();
-}
 
-async function deleteRecord(id) {
-  await dataService.delete(id);
-  await refreshData();
-}
+  async function saveRecord(data, id = null) {
+    const payload = {
+      ...data,
+      church: currentChurchId
+    };
 
-function renderLayout(section) {
-  section.innerHTML = \`
-    <h1>{{MODULE_LABEL}}</h1>
+    if (id) {
+      await dataService.update(id, payload);
+    } else {
+      await dataService.create(payload);
+    }
     
-    <div class="card">
-      <div class="members-toolbar">
-        <div class="members-search">
-          <input type="search" placeholder="Buscar..." id="{{MODULE_NAME}}-search">
-        </div>
-        <div class="members-actions">
-          \${can("create", "{{PERMISSION_KEY}}") ? \`<button id="{{MODULE_NAME}}-new">Nuevo</button>\` : ""}
+    await refreshData();
+  }
+
+  async function deleteRecord(id) {
+    await dataService.delete(id);
+    await refreshData();
+  }
+
+  function renderLayout(section) {
+    section.innerHTML = \`
+      <h1>{{MODULE_LABEL}}</h1>
+      
+      <div class="card">
+        <div class="members-toolbar">
+          <div class="members-search">
+            <input type="search" placeholder="Buscar..." id="{{MODULE_NAME}}-search">
+          </div>
+          <div class="members-actions">
+            \${can("create", "{{PERMISSION_KEY}}") ? \`<button id="{{MODULE_NAME}}-new">Nuevo</button>\` : ""}
+          </div>
         </div>
       </div>
-    </div>
-    
-    <div class="card">
-      <table class="users-table">
-        <thead>
-          <tr id="{{MODULE_NAME}}-headers"></tr>
-        </thead>
-        <tbody id="{{MODULE_NAME}}-body"></tbody>
-      </table>
-    </div>
-  \`;
-}`;
+      
+      <div class="card">
+        <table class="users-table">
+          <thead>
+            <tr id="{{MODULE_NAME}}-headers"></tr>
+          </thead>
+          <tbody id="{{MODULE_NAME}}-body"></tbody>
+        </table>
+      </div>
+    \`;
+  }`;
   }
 }
