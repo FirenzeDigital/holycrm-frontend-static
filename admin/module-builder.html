@@ -1,0 +1,255 @@
+<!-- admin/module-builder.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Module Builder - HolyCRM</title>
+  <link rel="stylesheet" href="../assets/css/app.css">
+  <style>
+    .builder-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .builder-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+    .schema-panel, .config-panel { background: white; border-radius: 8px; padding: 20px; }
+    .field-list { max-height: 400px; overflow-y: auto; }
+    .field-item { padding: 10px; border: 1px solid #e0e0e0; margin: 5px 0; cursor: move; }
+    .preview-panel { grid-column: 1 / -1; }
+    .code-output { background: #1e1e1e; color: #d4d4d4; padding: 20px; border-radius: 8px; font-family: 'Monaco', monospace; }
+    .drop-zone { border: 2px dashed #ccc; padding: 40px; text-align: center; margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <div class="builder-container">
+    <h1>📦 Module Builder</h1>
+    <p>Import a PocketBase collection JSON to generate a CRUD module automatically.</p>
+    
+    <div class="drop-zone" id="json-drop-zone">
+      <p>📁 Drag & drop PocketBase collection JSON file here</p>
+      <p>or <button id="paste-json">Paste JSON directly</button></p>
+    </div>
+    
+    <div class="builder-grid">
+      <!-- Left: Schema Analysis -->
+      <div class="schema-panel">
+        <h3>📋 Collection Schema</h3>
+        <div id="schema-info"></div>
+        <div class="field-list" id="field-list"></div>
+      </div>
+      
+      <!-- Right: Configuration -->
+      <div class="config-panel">
+        <h3>⚙️ Module Configuration</h3>
+        
+        <div class="field">
+          <label>Module Name</label>
+          <input type="text" id="module-name" placeholder="e.g., members">
+        </div>
+        
+        <div class="field">
+          <label>Display Label</label>
+          <input type="text" id="module-label" placeholder="e.g., Miembros">
+        </div>
+        
+        <div class="field">
+          <label>Icon</label>
+          <select id="module-icon">
+            <option value="👥">👥 People</option>
+            <option value="💰">💰 Money</option>
+            <option value="📅">📅 Calendar</option>
+            <option value="📍">📍 Location</option>
+            <option value="👪">👪 Group</option>
+            <option value="📊">📊 Chart</option>
+          </select>
+        </div>
+        
+        <h4>Table Columns</h4>
+        <div id="table-columns-config"></div>
+        
+        <h4>Form Fields</h4>
+        <div id="form-fields-config"></div>
+      </div>
+      
+      <!-- Preview & Code -->
+      <div class="preview-panel">
+        <h3>👁️ Preview & Generated Code</h3>
+        <button id="generate-code" class="btn-primary">Generate Module</button>
+        <button id="download-module" class="btn-secondary">Download JS File</button>
+        
+        <div class="code-output">
+          <pre id="generated-code">// Generated code will appear here</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { ModuleGenerator } from '../assets/js/core/ModuleGenerator.js';
+    
+    const generator = new ModuleGenerator();
+    let currentSchema = null;
+    let moduleConfig = {
+      tableColumns: [],
+      formFields: []
+    };
+    
+    // JSON Drop Zone
+    document.getElementById('json-drop-zone').addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.currentTarget.style.borderColor = '#007bff';
+    });
+    
+    document.getElementById('json-drop-zone').addEventListener('drop', async (e) => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file.type === 'application/json') {
+        const text = await file.text();
+        loadSchema(JSON.parse(text));
+      }
+    });
+    
+    document.getElementById('paste-json').addEventListener('click', () => {
+      const json = prompt('Paste PocketBase collection JSON:');
+      if (json) {
+        try {
+          loadSchema(JSON.parse(json));
+        } catch (e) {
+          alert('Invalid JSON');
+        }
+      }
+    });
+    
+    function loadSchema(pbJson) {
+      currentSchema = generator.parseCollectionSchema(pbJson);
+      renderSchemaInfo();
+      renderConfigUI();
+    }
+    
+    function renderSchemaInfo() {
+      const schemaInfo = document.getElementById('schema-info');
+      const fieldList = document.getElementById('field-list');
+      
+      schemaInfo.innerHTML = `
+        <p><strong>Collection:</strong> ${currentSchema.collectionName}</p>
+        <p><strong>Fields found:</strong> ${currentSchema.fields.length}</p>
+      `;
+      
+      fieldList.innerHTML = currentSchema.fields.map(field => `
+        <div class="field-item" data-field-name="${field.name}">
+          <strong>${field.label}</strong>
+          <small>${field.type} ${field.required ? '• Required' : ''}</small>
+        </div>
+      `).join('');
+    }
+    
+    function renderConfigUI() {
+      // Auto-populate module name
+      document.getElementById('module-name').value = currentSchema.collectionName;
+      document.getElementById('module-label').value = 
+        generator.formatLabel(currentSchema.collectionName);
+      
+      // Generate table columns config
+      const tableConfig = document.getElementById('table-columns-config');
+      tableConfig.innerHTML = currentSchema.fields.map(field => `
+        <div class="field-checkbox">
+          <label>
+            <input type="checkbox" 
+                   data-field="${field.name}" 
+                   ${['first_name', 'name', 'email'].includes(field.name) ? 'checked' : ''}>
+            Include "${field.label}" in table
+          </label>
+        </div>
+      `).join('');
+      
+      // Generate form fields config
+      const formConfig = document.getElementById('form-fields-config');
+      formConfig.innerHTML = currentSchema.fields.map(field => `
+        <div class="field-checkbox">
+          <label>
+            <input type="checkbox" 
+                   data-field="${field.name}" 
+                   ${!field.name.includes('created') && !field.name.includes('updated') ? 'checked' : ''}>
+            Include "${field.label}" in form
+          </label>
+        </div>
+      `).join('');
+    }
+    
+    // Generate button
+    document.getElementById('generate-code').addEventListener('click', () => {
+      if (!currentSchema) {
+        alert('Please load a schema first');
+        return;
+      }
+      
+      // Collect table columns
+      const tableColumns = Array.from(document.querySelectorAll('#table-columns-config input:checked'))
+        .map(input => {
+          const fieldName = input.dataset.field;
+          const field = currentSchema.fields.find(f => f.name === fieldName);
+          return {
+            key: field.name,
+            label: field.label,
+            format: field.type === 'date' ? "val => val?.split('T')[0]" : null
+          };
+        });
+      
+      // Collect form fields
+      const formFields = Array.from(document.querySelectorAll('#form-fields-config input:checked'))
+        .map(input => {
+          const fieldName = input.dataset.field;
+          const field = currentSchema.fields.find(f => f.name === fieldName);
+          
+          const fieldConfig = {
+            name: field.name,
+            label: field.label,
+            type: field.inputType,
+            required: field.required
+          };
+          
+          // Add options for select fields
+          if (field.type === 'select' && field.options.length > 0) {
+            fieldConfig.options = field.options.map(opt => ({
+              value: opt,
+              label: generator.formatLabel(opt)
+            }));
+          }
+          
+          return fieldConfig;
+        });
+      
+      // Generate module
+      const config = {
+        schema: currentSchema,
+        tableColumns,
+        formFields,
+        moduleName: document.getElementById('module-name').value,
+        moduleLabel: document.getElementById('module-label').value,
+        icon: document.getElementById('module-icon').value
+      };
+      
+      const code = generator.generateModule(config);
+      document.getElementById('generated-code').textContent = code;
+      
+      // Store for download
+      window.generatedCode = code;
+      window.generatedFilename = `${config.moduleName}.js`;
+    });
+    
+    // Download button
+    document.getElementById('download-module').addEventListener('click', () => {
+      if (!window.generatedCode) {
+        alert('Generate code first');
+        return;
+      }
+      
+      const blob = new Blob([window.generatedCode], { type: 'text/javascript' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = window.generatedFilename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+</html>

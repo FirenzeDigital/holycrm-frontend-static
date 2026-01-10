@@ -16,6 +16,13 @@ import { initCalendarView } from "./calendar.js";
 import { initFinanceRecordsView } from "./finance_transactions.js";
 import { initFinanceCategoriesView } from "./finance_categories.js";
 
+
+// builder
+import { ModuleRegistry } from "./core/ModuleRegistry.js";
+const moduleRegistry = new ModuleRegistry();
+await moduleRegistry.loadAllModules();
+
+
 // Map module IDs to their init functions
 const INIT_FUNCTIONS = {
   members: initMembersView,
