@@ -8,7 +8,7 @@ let currentChurchId = null;
 let dataService;
 let table, modal;
 
-export async function initmembersView(church) {
+export async function initMembersView(church) {
   if (!church) return;
   currentChurchId = church.id;
 

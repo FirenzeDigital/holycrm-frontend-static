@@ -58,11 +58,15 @@ export class ModuleGenerator {
   generateModule(config) {
     const { schema, tableColumns, formFields, moduleName, moduleLabel, icon } = config;
     
+    // Capitalize the first letter for the function name
+    const capitalizedModuleName = moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
+    
     const template = this.getModuleTemplate();
     
-    // Replace placeholders
+    // Replace placeholders - ADD CAPITALIZED_MODULE_NAME
     let code = template
       .replace(/{{MODULE_NAME}}/g, moduleName)
+      .replace(/{{CAPITALIZED_MODULE_NAME}}/g, capitalizedModuleName) // ADD THIS
       .replace(/{{MODULE_LABEL}}/g, moduleLabel)
       .replace(/{{COLLECTION_NAME}}/g, schema.collectionName)
       .replace(/{{ICON}}/g, icon)
@@ -84,7 +88,7 @@ let currentChurchId = null;
 let dataService;
 let table, modal;
 
-export async function init{{MODULE_NAME}}View(church) {
+export async function init{{CAPITALIZED_MODULE_NAME}}View(church) {
   if (!church) return;
   currentChurchId = church.id;
 
