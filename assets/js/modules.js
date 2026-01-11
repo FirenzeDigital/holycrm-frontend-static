@@ -13,8 +13,8 @@ export const MODULE_PERMISSION_MATRIX = {
   members: {
     admin: { c: true, r: true, u: true, d: true },
     manager: { c: true, r: true, u: true, d: true },
-    volunteer: { c: true, r: true, u: true, d: false },
-    member: { c: false, r: true, u: false, d: false }
+    volunteer: { c: true, r: true, u: false, d: false },
+    member: { c: false, r: false, u: false, d: false }
   },
   groups: {
     admin: { c: true, r: true, u: true, d: true },
