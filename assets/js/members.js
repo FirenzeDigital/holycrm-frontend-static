@@ -36,6 +36,7 @@ async function initComponents() {
   // Configure and create table
   table = new CrudTable({
     container: '#members-body',
+    headerContainer: '#members-headers',
     columns: [
   {
     "key": "first_name",
@@ -50,11 +51,6 @@ async function initComponents() {
   {
     "key": "email",
     "label": "Email",
-    "format": null
-  },
-  {
-    "key": "phone",
-    "label": "Phone",
     "format": null
   }
 ],
@@ -92,12 +88,6 @@ async function initComponents() {
     "label": "Phone",
     "type": "text",
     "required": false
-  },
-  {
-    "name": "church",
-    "label": "Church",
-    "type": "select",
-    "required": true
   },
   {
     "name": "status",
@@ -158,7 +148,7 @@ async function openRecordModal(id = null) {
 async function saveRecord(data, id = null) {
   const payload = {
     ...data,
-    church: currentChurchId
+    church: currentChurchId  // Auto-fill church ID for multi-tenancy
   };
 
   if (id) {
