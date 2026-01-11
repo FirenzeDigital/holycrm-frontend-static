@@ -138,40 +138,46 @@
         </div>
       `).join('');
     }
-    
+   
     function renderConfigUI() {
       // Auto-populate module name
       document.getElementById('module-name').value = currentSchema.collectionName;
       document.getElementById('module-label').value = 
         generator.formatLabel(currentSchema.collectionName);
       
-      // Generate table columns config
+      // Generate table columns config (skip church field)
       const tableConfig = document.getElementById('table-columns-config');
-      tableConfig.innerHTML = currentSchema.fields.map(field => `
-        <div class="field-checkbox">
-          <label>
-            <input type="checkbox" 
-                   data-field="${field.name}" 
-                   ${['first_name', 'name', 'email'].includes(field.name) ? 'checked' : ''}>
-            Include "${field.label}" in table
-          </label>
-        </div>
-      `).join('');
+      tableConfig.innerHTML = currentSchema.fields
+        .filter(field => field.name !== 'church') // Skip church field
+        .map(field => `
+          <div class="field-checkbox">
+            <label>
+              <input type="checkbox" 
+                    data-field="${field.name}" 
+                    ${['first_name', 'name', 'email', 'date', 'concept'].includes(field.name) ? 'checked' : ''}>
+              Include "${field.label}" in table
+            </label>
+          </div>
+        `).join('');
       
-      // Generate form fields config
+      // Generate form fields config (skip church field)
       const formConfig = document.getElementById('form-fields-config');
-      formConfig.innerHTML = currentSchema.fields.map(field => `
-        <div class="field-checkbox">
-          <label>
-            <input type="checkbox" 
-                   data-field="${field.name}" 
-                   ${!field.name.includes('created') && !field.name.includes('updated') ? 'checked' : ''}>
-            Include "${field.label}" in form
-          </label>
-        </div>
-      `).join('');
+      formConfig.innerHTML = currentSchema.fields
+        .filter(field => field.name !== 'church') // Skip church field in form too
+        .map(field => `
+          <div class="field-checkbox">
+            <label>
+              <input type="checkbox" 
+                    data-field="${field.name}" 
+                    ${!field.name.includes('created') && !field.name.includes('updated') && 
+                      !field.name.includes('id') ? 'checked' : ''}>
+              Include "${field.label}" in form
+              ${field.type === 'relation' ? '<br><small>(Relation - will need dynamic options)</small>' : ''}
+            </label>
+          </div>
+        `).join('');
     }
-    
+
     // Generate button
     document.getElementById('generate-code').addEventListener('click', () => {
       if (!currentSchema) {
