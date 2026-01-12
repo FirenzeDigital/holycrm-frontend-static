@@ -209,7 +209,7 @@ export const MODULE_CATEGORIES = [
   {
     id: 'main',
     label: 'Main Modules',
-    moduleIds: ['dashboard', 'members', 'groups', 'events', 'locations', 'ministries', 'ministry_activities', 'rotas', 'calendar', 'finance']
+    moduleIds: ['dashboard', 'members', 'groups', 'events', 'locations', 'ministries', 'ministry_activities', 'rotas', 'service_role_assignments', 'service_roles', 'calendar', 'finance']
   },
   {
     id: 'finance',
