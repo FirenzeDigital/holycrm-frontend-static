@@ -34,7 +34,9 @@ const INIT_FUNCTIONS = {
   groups: initGroupsView,
   locations: initLocationsView,
   ministries: initMinistriesView,
-  rotas: initRotasView, initService_role_assignmentsView, initService_rolesView,
+  rotas: initRotasView,
+  service_role_assignments: initService_role_assignmentsView,
+  service_roles: initService_rolesView,
   calendar: initCalendarView,
   finance_transactions: initFinanceRecordsView,
   finance_categories: initFinanceCategoriesView
@@ -364,6 +366,8 @@ function canView(view, showRotasComputed) {
   if (view === "locations") return can("read", "locations");
   if (view === "ministries") return can("read", "ministries");
   if (view === "rotas") return !!showRotasComputed;
+  if (view === "service_role_assignments") return can("read", "service_role_assignments");
+  if (view === "service_roles") return can("read", "service_roles");
   if (view === "calendar") return can("read", "calendar");
   if (view === "finance") {
     return (
