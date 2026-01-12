@@ -1,19 +1,25 @@
 // Generated module for Locations
 import { can } from "./permissions.js";
 import { DataService } from "./core/DataService.js";
-import { CrudTable } from "./core/CrudTable.js";
-import { ModalForm } from "./core/ModalForm.js";
+import { EnhancedCrudTable } from "./core/EnhancedCrudTable.js";
+import { SmartModalForm } from "./core/SmartModalForm.js";
 
 let currentChurchId = null;
 let dataService;
 let table, modal;
 
+let relationData = {};
+
 export async function initLocationsView(church) {
   if (!church) return;
   currentChurchId = church.id;
 
-  // Initialize service
+  // Initialize main service
   dataService = new DataService('locations');
+  
+
+  // Initialize relation services
+  
 
   // Check permissions
   const section = document.querySelector('section[data-view="locations"]');
@@ -33,14 +39,16 @@ export async function initLocationsView(church) {
 }
 
 async function initComponents() {
+  
+
   // Configure and create table
-  table = new CrudTable({
+  table = new EnhancedCrudTable({
     container: '#locations-body',
     headerContainer: '#locations-headers',
     columns: [
   {
     "key": "name",
-    "label": "Name",
+    "label": "Nombre",
     "format": null
   },
   {
@@ -55,24 +63,25 @@ async function initComponents() {
   },
   {
     "key": "status",
-    "label": "Status",
+    "label": "Estado",
     "format": null
   }
 ],
     canEdit: can("update", "locations"),
     canDelete: can("delete", "locations"),
     onEdit: openRecordModal,
-    onDelete: deleteRecord
+    onDelete: deleteRecord,
+    searchInput: '#locations-search'
   });
 
   // Configure and create modal form
-  modal = new ModalForm({
+  modal = new SmartModalForm({
     id: 'locations-modal',
     title: 'Locations',
     fields: [
   {
     "name": "name",
-    "label": "Name",
+    "label": "Nombre",
     "type": "text",
     "required": true
   },
@@ -96,7 +105,7 @@ async function initComponents() {
   },
   {
     "name": "status",
-    "label": "Status",
+    "label": "Estado",
     "type": "select",
     "required": false,
     "options": [
@@ -112,36 +121,45 @@ async function initComponents() {
   },
   {
     "name": "notes",
-    "label": "Notes",
+    "label": "Notas",
     "type": "text",
     "required": false
   }
 ],
-    onSubmit: saveRecord
+    onSubmit: saveRecord,
+    onLoadRelations: loadRelationOptions
   });
 
   // Wire up the "New" button
   document.getElementById('locations-new')?.addEventListener('click', () => openRecordModal());
 }
 
+
+
+
 async function refreshData() {
+  console.log('Refreshing data for church:', currentChurchId);
   const data = await dataService.getList(currentChurchId);
+  console.log('Got data:', data.length, 'records');
   table.render(data);
 }
 
 async function openRecordModal(id = null) {
   if (id) {
     const record = await dataService.getOne(id);
-    modal.open(record);
+    console.log('Opening record:', record);
+    await modal.open(record);
   } else {
-    modal.open({});
+    await modal.open({});
   }
 }
 
 async function saveRecord(data, id = null) {
+  console.log('Saving record:', data);
+  
   const payload = {
     ...data,
-    church: currentChurchId  // Auto-fill church ID for multi-tenancy
+    church: currentChurchId
   };
 
   if (id) {
@@ -154,6 +172,8 @@ async function saveRecord(data, id = null) {
 }
 
 async function deleteRecord(id) {
+  if (!confirm('¿Eliminar registro?')) return;
+  
   await dataService.delete(id);
   await refreshData();
 }
