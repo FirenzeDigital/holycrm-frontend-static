@@ -235,10 +235,10 @@ export function shouldShowModule(moduleId) {
   if (!module) return false;
   if (module.defaultPermission === 'always_visible') return true;
   
-  // Special case handling for rotas
-  if (moduleId === 'rotas') {
-    return checkPermission('read', 'service_role_assignments') || checkPermission('read', 'service_roles');
-  }
+  // // Special case handling for rotas
+  // if (moduleId === 'rotas') {
+  //   return checkPermission('read', 'service_role_assignments') || checkPermission('read', 'service_roles');
+  // }
     
   // Generic permission check - convert "read:members" to "read", "members"
   const [action, resource] = module.defaultPermission.split(':');
