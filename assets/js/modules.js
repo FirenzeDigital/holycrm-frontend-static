@@ -52,6 +52,18 @@ export const MODULE_PERMISSION_MATRIX = {
     volunteer: { c: false, r: false, u: false, d: false },
     member: { c: false, r: false, u: false, d: false }
   },
+  service_roles: {
+    admin: { c: true, r: true, u: true, d: true },
+    manager: { c: true, r: true, u: true, d: true },
+    volunteer: { c: false, r: false, u: false, d: false },
+    member: { c: false, r: false, u: false, d: false }
+  },
+  service_role_assignments: {
+    admin: { c: true, r: true, u: true, d: true },
+    manager: { c: true, r: true, u: true, d: true },
+    volunteer: { c: false, r: false, u: false, d: false },
+    member: { c: false, r: false, u: false, d: false }
+  },
   calendar: {
     admin: { c: true, r: true, u: true, d: true },
     manager: { c: true, r: true, u: true, d: true },
