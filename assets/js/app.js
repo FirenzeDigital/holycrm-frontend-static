@@ -12,6 +12,8 @@ import { initGroupsView } from "./groups.js";
 import { initLocationsView } from "./locations.js";
 import { initMinistriesView } from "./ministries.js";
 import { initRotasView } from "./rotas.js";
+import { initService_role_assignmentsView } from "./service_role_assignments.js";
+import { initService_rolesView } from "./service_roles.js";
 import { initCalendarView } from "./calendar.js";
 import { initFinanceRecordsView } from "./finance_transactions.js";
 import { initFinanceCategoriesView } from "./finance_categories.js";
@@ -32,7 +34,7 @@ const INIT_FUNCTIONS = {
   groups: initGroupsView,
   locations: initLocationsView,
   ministries: initMinistriesView,
-  rotas: initRotasView,
+  rotas: initRotasView, initService_role_assignmentsView, initService_rolesView,
   calendar: initCalendarView,
   finance_transactions: initFinanceRecordsView,
   finance_categories: initFinanceCategoriesView
