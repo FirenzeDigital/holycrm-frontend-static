@@ -153,6 +153,20 @@ export const MODULES = {
     defaultPermission: 'read:service_roles',
     initFunction: 'initRotasView'
   },
+  service_roles: {
+    id: 'service_roles',
+    label: 'Service Roles',
+    icon: '🔄',
+    defaultPermission: 'read:service_roles',
+    initFunction: 'initService_rolesView'
+  },
+  service_role_assignments: {
+    id: 'service_role_assignments',
+    label: 'Rotas assignment',
+    icon: '🔄',
+    defaultPermission: 'read:service_role_assignments',
+    initFunction: 'initService_role_assignmentsView'
+  },
   calendar: {
     id: 'calendar',
     label: 'Calendario',
