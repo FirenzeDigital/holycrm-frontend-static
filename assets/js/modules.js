@@ -40,6 +40,12 @@ export const MODULE_PERMISSION_MATRIX = {
     volunteer: { c: true, r: true, u: true, d: false },
     member: { c: false, r: false, u: false, d: false }
   },
+  ministry_activities: {
+    admin: { c: true, r: true, u: true, d: true },
+    manager: { c: true, r: true, u: true, d: true },
+    volunteer: { c: true, r: true, u: true, d: false },
+    member: { c: false, r: false, u: false, d: false }
+  },
   rotas: {
     admin: { c: true, r: true, u: true, d: true },
     manager: { c: true, r: true, u: true, d: true },
@@ -121,6 +127,13 @@ export const MODULES = {
     defaultPermission: 'read:ministries',
     initFunction: 'initMinistriesView'
   },
+  ministry_activities: {
+    id: 'ministry_activities',
+    label: 'Actividades de Ministerios',
+    icon: '⏰',
+    defaultPermission: 'read:ministry_activities',
+    initFunction: 'initMinistryActivitiesView'
+  },
   rotas: {
     id: 'rotas',
     label: 'Roles mensuales',
@@ -170,7 +183,7 @@ export const MODULE_CATEGORIES = [
   {
     id: 'main',
     label: 'Main Modules',
-    moduleIds: ['dashboard', 'members', 'groups', 'events', 'locations', 'ministries', 'rotas', 'calendar', 'finance']
+    moduleIds: ['dashboard', 'members', 'groups', 'events', 'locations', 'ministries', 'ministry_activities', 'rotas', 'calendar', 'finance']
   },
   {
     id: 'finance',

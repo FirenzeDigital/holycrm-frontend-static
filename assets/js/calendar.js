@@ -2,7 +2,7 @@
 import { can } from "./permissions.js";
 import { loadCalendarItems } from "./calendar_data.js";
 import { openEventModalById } from "./events.js";
-import { openMinistryActivityModalById } from "./ministries.js";
+import { openMinistryActivityModalById } from "./ministry_activities.js";
 import { initRotasView } from "./rotas.js";
 
 let initialized = false;
