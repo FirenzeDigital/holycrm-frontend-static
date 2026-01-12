@@ -1,77 +1,151 @@
-<!-- admin/module-builder.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Module Builder - HolyCRM</title>
+  <title>Enhanced Module Builder - HolyCRM</title>
   <link rel="stylesheet" href="../assets/css/app.css">
   <style>
-    .builder-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .builder-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
     .builder-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
     .schema-panel, .config-panel { background: white; border-radius: 8px; padding: 20px; }
-    .field-list { max-height: 400px; overflow-y: auto; }
-    .field-item { padding: 10px; border: 1px solid #e0e0e0; margin: 5px 0; cursor: move; }
+    .field-list { max-height: 400px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px; }
+    .field-item { 
+      padding: 12px; 
+      border-bottom: 1px solid #f0f0f0; 
+      margin: 5px 0; 
+      cursor: move;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .field-item:last-child { border-bottom: none; }
+    .field-badge {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+    .field-badge.relation { background: #e8f5e8; color: #2e7d32; }
+    .field-badge.select { background: #fff3e0; color: #f57c00; }
     .preview-panel { grid-column: 1 / -1; }
-    .code-output { background: #1e1e1e; color: #d4d4d4; padding: 20px; border-radius: 8px; font-family: 'Monaco', monospace; }
-    .drop-zone { border: 2px dashed #ccc; padding: 40px; text-align: center; margin: 20px 0; }
+    .code-output { 
+      background: #1e1e1e; 
+      color: #d4d4d4; 
+      padding: 20px; 
+      border-radius: 8px; 
+      font-family: 'Monaco', monospace;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .drop-zone { 
+      border: 2px dashed #ccc; 
+      padding: 40px; 
+      text-align: center; 
+      margin: 20px 0;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    .drop-zone.drag-over { border-color: #007bff; background: #e3f2fd; }
+    .field-checkbox { margin: 10px 0; padding: 8px; background: #f9f9f9; border-radius: 4px; }
+    .config-section { margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 6px; }
+    .module-info { background: #e8f5e8; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
+    .error-message { color: #dc3545; background: #f8d7da; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    .success-message { color: #28a745; background: #d4edda; padding: 10px; border-radius: 4px; margin: 10px 0; }
   </style>
 </head>
 <body>
   <div class="builder-container">
-    <h1>📦 Module Builder</h1>
-    <p>Import a PocketBase collection JSON to generate a CRUD module automatically.</p>
+    <h1>🚀 Enhanced Module Builder</h1>
+    <p>Import any PocketBase collection JSON to generate a fully-functional CRUD module with automatic relation handling.</p>
+    
+    <div class="module-info">
+      <h3>📦 How it works:</h3>
+      <ul>
+        <li>1. Paste your PocketBase collection JSON below</li>
+        <li>2. Configure which fields to show in table and form</li>
+        <li>3. Relation fields will automatically load options from their collections</li>
+        <li>4. Generate and download a production-ready JavaScript module</li>
+      </ul>
+    </div>
     
     <div class="drop-zone" id="json-drop-zone">
-      <p>📁 Drag & drop PocketBase collection JSON file here</p>
-      <p>or <button id="paste-json">Paste JSON directly</button></p>
+      <h3>📁 Import Collection Schema</h3>
+      <p>Drag & drop a PocketBase collection JSON file here</p>
+      <p>or <button id="paste-json" class="btn-primary">Paste JSON directly</button></p>
+      <p><small>Get JSON from PocketBase: Collections → Click collection → Click "Copy raw JSON" button</small></p>
     </div>
+    
+    <div id="parsing-error" class="error-message" style="display:none"></div>
+    <div id="parsing-success" class="success-message" style="display:none"></div>
     
     <div class="builder-grid">
       <!-- Left: Schema Analysis -->
       <div class="schema-panel">
-        <h3>📋 Collection Schema</h3>
+        <h3>📋 Collection Schema Analysis</h3>
         <div id="schema-info"></div>
-        <div class="field-list" id="field-list"></div>
+        <h4>Available Fields:</h4>
+        <div class="field-list" id="field-list">
+          <div class="muted">No schema loaded yet...</div>
+        </div>
       </div>
       
       <!-- Right: Configuration -->
       <div class="config-panel">
         <h3>⚙️ Module Configuration</h3>
         
-        <div class="field">
-          <label>Module Name</label>
-          <input type="text" id="module-name" placeholder="e.g., members">
+        <div class="config-section">
+          <h4>Basic Info</h4>
+          <div class="field">
+            <label>Module Name (technical)</label>
+            <input type="text" id="module-name" placeholder="e.g., members">
+            <small>Used for function names and permissions</small>
+          </div>
+          
+          <div class="field">
+            <label>Display Label</label>
+            <input type="text" id="module-label" placeholder="e.g., Miembros">
+          </div>
+          
+          <div class="field">
+            <label>Icon</label>
+            <select id="module-icon">
+              <option value="👥">👥 People</option>
+              <option value="💰">💰 Money</option>
+              <option value="📅">📅 Calendar</option>
+              <option value="📍">📍 Location</option>
+              <option value="👪">👪 Group</option>
+              <option value="📊">📊 Chart</option>
+              <option value="🎭">🎭 Ministry</option>
+              <option value="🛠️">🛠️ Service</option>
+              <option value="📝">📝 Notes</option>
+            </select>
+          </div>
         </div>
         
-        <div class="field">
-          <label>Display Label</label>
-          <input type="text" id="module-label" placeholder="e.g., Miembros">
+        <div class="config-section">
+          <h4>Table Columns</h4>
+          <p><small>Choose which fields to show in the table (relation fields will show expanded data)</small></p>
+          <div id="table-columns-config"></div>
         </div>
         
-        <div class="field">
-          <label>Icon</label>
-          <select id="module-icon">
-            <option value="👥">👥 People</option>
-            <option value="💰">💰 Money</option>
-            <option value="📅">📅 Calendar</option>
-            <option value="📍">📍 Location</option>
-            <option value="👪">👪 Group</option>
-            <option value="📊">📊 Chart</option>
-          </select>
+        <div class="config-section">
+          <h4>Form Fields</h4>
+          <p><small>Choose which fields to include in the create/edit form</small></p>
+          <div id="form-fields-config"></div>
         </div>
-        
-        <h4>Table Columns</h4>
-        <div id="table-columns-config"></div>
-        
-        <h4>Form Fields</h4>
-        <div id="form-fields-config"></div>
       </div>
       
       <!-- Preview & Code -->
       <div class="preview-panel">
         <h3>👁️ Preview & Generated Code</h3>
-        <button id="generate-code" class="btn-primary">Generate Module</button>
-        <button id="download-module" class="btn-secondary">Download JS File</button>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+          <button id="generate-code" class="btn-primary">Generate Module</button>
+          <button id="download-module" class="btn-secondary" disabled>Download JS File</button>
+          <button id="reset-builder" class="btn-secondary">Reset Builder</button>
+        </div>
+        
+        <div id="generator-status"></div>
         
         <div class="code-output">
           <pre id="generated-code">// Generated code will appear here</pre>
@@ -81,107 +155,197 @@
   </div>
 
   <script type="module">
-    import { ModuleGenerator } from '../assets/js/core/ModuleGenerator.js';
+    import { EnhancedModuleGenerator } from '../assets/js/core/EnhancedModuleGenerator.js';
     
-    const generator = new ModuleGenerator();
+    const generator = new EnhancedModuleGenerator();
     let currentSchema = null;
     let moduleConfig = {
       tableColumns: [],
       formFields: []
     };
     
+    // DOM Elements
+    const dropZone = document.getElementById('json-drop-zone');
+    const pasteBtn = document.getElementById('paste-json');
+    const generateBtn = document.getElementById('generate-code');
+    const downloadBtn = document.getElementById('download-module');
+    const resetBtn = document.getElementById('reset-builder');
+    const schemaInfo = document.getElementById('schema-info');
+    const fieldList = document.getElementById('field-list');
+    const tableConfig = document.getElementById('table-columns-config');
+    const formConfig = document.getElementById('form-fields-config');
+    const generatedCode = document.getElementById('generated-code');
+    const generatorStatus = document.getElementById('generator-status');
+    const parsingError = document.getElementById('parsing-error');
+    const parsingSuccess = document.getElementById('parsing-success');
+    
     // JSON Drop Zone
-    document.getElementById('json-drop-zone').addEventListener('dragover', (e) => {
+    dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
-      e.currentTarget.style.borderColor = '#007bff';
+      dropZone.classList.add('drag-over');
     });
     
-    document.getElementById('json-drop-zone').addEventListener('drop', async (e) => {
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('drag-over');
+    });
+    
+    dropZone.addEventListener('drop', async (e) => {
       e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      
       const file = e.dataTransfer.files[0];
-      if (file.type === 'application/json') {
-        const text = await file.text();
-        loadSchema(JSON.parse(text));
+      if (file && file.type === 'application/json') {
+        try {
+          const text = await file.text();
+          loadSchema(JSON.parse(text));
+        } catch (error) {
+          showError('Error reading file: ' + error.message);
+        }
+      } else {
+        showError('Please drop a JSON file');
       }
     });
     
-    document.getElementById('paste-json').addEventListener('click', () => {
-      const json = prompt('Paste PocketBase collection JSON:');
-      if (json) {
-        try {
-          loadSchema(JSON.parse(json));
-        } catch (e) {
-          alert('Invalid JSON');
+    // Paste JSON button
+    pasteBtn.addEventListener('click', async () => {
+      try {
+        const json = prompt('Paste PocketBase collection JSON:');
+        if (json) {
+          const parsed = JSON.parse(json);
+          loadSchema(parsed);
         }
+      } catch (error) {
+        showError('Invalid JSON: ' + error.message);
       }
+    });
+    
+    // Reset button
+    resetBtn.addEventListener('click', () => {
+      currentSchema = null;
+      moduleConfig = { tableColumns: [], formFields: [] };
+      resetUI();
+      showSuccess('Builder reset. Ready for new collection.');
     });
     
     function loadSchema(pbJson) {
-      currentSchema = generator.parseCollectionSchema(pbJson);
-      renderSchemaInfo();
-      renderConfigUI();
+      try {
+        parsingError.style.display = 'none';
+        parsingSuccess.style.display = 'none';
+        
+        console.log('Parsing schema:', pbJson.name);
+        currentSchema = generator.parseCollectionSchema(pbJson);
+        
+        // Auto-populate module name and label
+        document.getElementById('module-name').value = currentSchema.collectionName;
+        document.getElementById('module-label').value = generator.formatLabel(currentSchema.collectionName);
+        
+        renderSchemaInfo();
+        renderConfigUI();
+        
+        parsingSuccess.textContent = `✅ Successfully parsed "${currentSchema.collectionName}" collection with ${currentSchema.fields.length} fields`;
+        parsingSuccess.style.display = 'block';
+        
+        showStatus(`Ready to generate "${currentSchema.collectionName}" module`, 'info');
+        
+      } catch (error) {
+        console.error('Error parsing schema:', error);
+        showError('Failed to parse schema: ' + error.message);
+        currentSchema = null;
+      }
     }
     
     function renderSchemaInfo() {
-      const schemaInfo = document.getElementById('schema-info');
-      const fieldList = document.getElementById('field-list');
+      if (!currentSchema) return;
+      
+      const relationCount = currentSchema.fields.filter(f => f.type === 'relation').length;
+      const selectCount = currentSchema.fields.filter(f => f.type === 'select').length;
       
       schemaInfo.innerHTML = `
-        <p><strong>Collection:</strong> ${currentSchema.collectionName}</p>
-        <p><strong>Fields found:</strong> ${currentSchema.fields.length}</p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+          <div>
+            <strong>Collection:</strong><br>
+            <span style="font-size: 18px; color: #1976d2;">${currentSchema.collectionName}</span>
+          </div>
+          <div>
+            <strong>Type:</strong><br>
+            ${currentSchema.isChurchSpecific ? '🏛️ Church-specific' : '🌍 Global'}
+          </div>
+          <div>
+            <strong>Fields:</strong><br>
+            ${currentSchema.fields.length} total<br>
+            ${relationCount} relations, ${selectCount} selects
+          </div>
+          <div>
+            <strong>Church Field:</strong><br>
+            ${currentSchema.hasChurchField ? '✅ Auto-handled' : '❌ Not present'}
+          </div>
+        </div>
       `;
       
-      fieldList.innerHTML = currentSchema.fields.map(field => `
-        <div class="field-item" data-field-name="${field.name}">
-          <strong>${field.label}</strong>
-          <small>${field.type} ${field.required ? '• Required' : ''}</small>
-        </div>
-      `).join('');
+      // Render field list
+      fieldList.innerHTML = currentSchema.fields.map(field => {
+        const badgeClass = field.type === 'relation' ? 'relation' : field.type === 'select' ? 'select' : '';
+        const badgeText = field.type === 'relation' ? 'Relation → ' + (field.relationCollection || 'unknown') : 
+                         field.type === 'select' ? 'Select' : field.type;
+        
+        return `
+          <div class="field-item">
+            <div>
+              <strong>${field.label}</strong><br>
+              <small>${field.name} • ${field.required ? 'Required' : 'Optional'}</small>
+            </div>
+            <span class="field-badge ${badgeClass}">${badgeText}</span>
+          </div>
+        `;
+      }).join('');
     }
-   
+    
     function renderConfigUI() {
-      // Auto-populate module name
-      document.getElementById('module-name').value = currentSchema.collectionName;
-      document.getElementById('module-label').value = 
-        generator.formatLabel(currentSchema.collectionName);
+      if (!currentSchema) return;
       
-      // Generate table columns config (skip church field)
-      const tableConfig = document.getElementById('table-columns-config');
+      // Generate table columns config
       tableConfig.innerHTML = currentSchema.fields
-        .filter(field => field.name !== 'church') // Skip church field
+        .filter(field => field.type !== 'relation') // Don't show relation fields in table by default
         .map(field => `
           <div class="field-checkbox">
             <label>
               <input type="checkbox" 
-                    data-field="${field.name}" 
-                    ${['first_name', 'name', 'email', 'date', 'concept'].includes(field.name) ? 'checked' : ''}>
-              Include "${field.label}" in table
+                     data-field="${field.name}" 
+                     data-type="${field.type}"
+                     ${['name', 'title', 'first_name', 'email', 'date'].includes(field.name) ? 'checked' : ''}>
+              ${field.label}
+              <small>(${field.name}, ${field.type})</small>
             </label>
           </div>
         `).join('');
       
-      // Generate form fields config (skip church field)
-      const formConfig = document.getElementById('form-fields-config');
-      formConfig.innerHTML = currentSchema.fields
-        .filter(field => field.name !== 'church') // Skip church field in form too
-        .map(field => `
+      // Generate form fields config
+      formConfig.innerHTML = currentSchema.fields.map(field => {
+        const isRelation = field.type === 'relation';
+        const isSelect = field.type === 'select';
+        const specialNote = isRelation ? '<br><small style="color:#2e7d32;">→ Will load options from ' + (field.relationCollection || 'related collection') + '</small>' : 
+                          isSelect ? '<br><small style="color:#f57c00;">→ Static options from PocketBase</small>' : '';
+        
+        return `
           <div class="field-checkbox">
             <label>
               <input type="checkbox" 
-                    data-field="${field.name}" 
-                    ${!field.name.includes('created') && !field.name.includes('updated') && 
-                      !field.name.includes('id') ? 'checked' : ''}>
-              Include "${field.label}" in form
-              ${field.type === 'relation' ? '<br><small>(Relation - will need dynamic options)</small>' : ''}
+                     data-field="${field.name}" 
+                     data-type="${field.type}"
+                     ${!['created', 'updated', 'id'].includes(field.name) ? 'checked' : ''}>
+              ${field.label}
+              <small>(${field.name}, ${field.type})</small>
+              ${specialNote}
             </label>
           </div>
-        `).join('');
+        `;
+      }).join('');
     }
-
+    
     // Generate button
-    document.getElementById('generate-code').addEventListener('click', () => {
+    generateBtn.addEventListener('click', () => {
       if (!currentSchema) {
-        alert('Please load a schema first');
+        showError('Please load a schema first');
         return;
       }
       
@@ -189,11 +353,20 @@
       const tableColumns = Array.from(document.querySelectorAll('#table-columns-config input:checked'))
         .map(input => {
           const fieldName = input.dataset.field;
+          const fieldType = input.dataset.type;
           const field = currentSchema.fields.find(f => f.name === fieldName);
+          
+          let format = null;
+          if (fieldType === 'date') {
+            format = "val => val ? val.split('T')[0] : ''";
+          } else if (fieldType === 'bool') {
+            format = "val => val ? 'Sí' : 'No'";
+          }
+          
           return {
             key: field.name,
             label: field.label,
-            format: field.type === 'date' ? "val => val?.split('T')[0]" : null
+            format: format
           };
         });
       
@@ -201,21 +374,35 @@
       const formFields = Array.from(document.querySelectorAll('#form-fields-config input:checked'))
         .map(input => {
           const fieldName = input.dataset.field;
+          const fieldType = input.dataset.type;
           const field = currentSchema.fields.find(f => f.name === fieldName);
           
           const fieldConfig = {
             name: field.name,
             label: field.label,
-            type: field.inputType,
+            type: field.inputType || field.type,
             required: field.required
           };
           
-          // Add options for select fields
-          if (field.type === 'select' && field.options.length > 0) {
+          // Handle different field types
+          if (field.type === 'select' && field.options && field.options.length > 0) {
             fieldConfig.options = field.options.map(opt => ({
               value: opt,
               label: generator.formatLabel(opt)
             }));
+          }
+          
+          if (field.type === 'relation') {
+            fieldConfig.componentType = 'relation';
+            fieldConfig.relationCollection = field.relationCollection;
+          }
+          
+          if (field.type === 'number') {
+            fieldConfig.step = '0.01';
+          }
+          
+          if (field.type === 'json') {
+            fieldConfig.placeholder = 'Ej: ["tag1", "tag2"]';
           }
           
           return fieldConfig;
@@ -231,31 +418,85 @@
         icon: document.getElementById('module-icon').value
       };
       
-      const code = generator.generateModule(config);
-      document.getElementById('generated-code').textContent = code;
-      
-      // Store for download
-      window.generatedCode = code;
-      window.generatedFilename = `${config.moduleName}.js`;
+      try {
+        const code = generator.generateModule(config);
+        generatedCode.textContent = code;
+        
+        // Store for download
+        window.generatedCode = code;
+        window.generatedFilename = `${config.moduleName}.js`;
+        
+        downloadBtn.disabled = false;
+        showStatus(`✅ Module "${config.moduleName}" generated successfully!`, 'success');
+        
+        // Auto-scroll to preview
+        generatedCode.scrollIntoView({ behavior: 'smooth' });
+        
+      } catch (error) {
+        console.error('Generation error:', error);
+        showError('Failed to generate module: ' + error.message);
+      }
     });
     
     // Download button
-    document.getElementById('download-module').addEventListener('click', () => {
+    downloadBtn.addEventListener('click', () => {
       if (!window.generatedCode) {
-        alert('Generate code first');
+        showError('Generate code first');
         return;
       }
       
-      const blob = new Blob([window.generatedCode], { type: 'text/javascript' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = window.generatedFilename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      try {
+        const blob = new Blob([window.generatedCode], { type: 'text/javascript' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = window.generatedFilename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showStatus(`📥 Module downloaded as "${window.generatedFilename}"`, 'success');
+      } catch (error) {
+        showError('Download failed: ' + error.message);
+      }
     });
+    
+    // Helper functions
+    function showStatus(message, type = 'info') {
+      generatorStatus.innerHTML = `
+        <div class="${type === 'error' ? 'error-message' : type === 'success' ? 'success-message' : ''}">
+          ${message}
+        </div>
+      `;
+    }
+    
+    function showError(message) {
+      parsingError.textContent = message;
+      parsingError.style.display = 'block';
+      parsingSuccess.style.display = 'none';
+    }
+    
+    function showSuccess(message) {
+      parsingSuccess.textContent = message;
+      parsingSuccess.style.display = 'block';
+      parsingError.style.display = 'none';
+    }
+    
+    function resetUI() {
+      schemaInfo.innerHTML = '';
+      fieldList.innerHTML = '<div class="muted">No schema loaded yet...</div>';
+      tableConfig.innerHTML = '';
+      formConfig.innerHTML = '';
+      generatedCode.textContent = '// Generated code will appear here';
+      generatorStatus.innerHTML = '';
+      downloadBtn.disabled = true;
+      parsingError.style.display = 'none';
+      parsingSuccess.style.display = 'none';
+    }
+    
+    // Initialize
+    resetUI();
   </script>
 </body>
 </html>
