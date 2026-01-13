@@ -1,32 +1,30 @@
-// assets/js/core/SmartModalForm.js (NEW - REPLACES ModalForm.js)
+// assets/js/core/SmartModalForm.js
 export class SmartModalForm {
   constructor(config) {
     this.id = config.id || 'smart-modal';
     this.title = config.title || 'Formulario';
-    this.fields = config.fields; // Now includes relationConfig
+    this.fields = config.fields;
     this.onSubmit = config.onSubmit;
-    this.onLoadRelations = config.onLoadRelations; // Callback to load relation data
-    this.relationCache = new Map(); // Cache for relation data
+    this.onLoadRelations = config.onLoadRelations || (() => []);
+    this.relationCache = new Map();
   }
 
   async open(data = {}) {
     this.currentData = data;
     await this.renderModal();
     await this.populateForm(data);
-    document.getElementById(this.id).style.display = 'block';
+    this.show();
   }
 
   async renderModal() {
     if (document.getElementById(this.id)) {
-      // Modal already exists, just update options if needed
-      await this.updateRelationOptions();
-      return;
+      return; // Modal already exists
     }
 
     const fieldHTML = await Promise.all(
       this.fields.map(async field => `
         <div class="field">
-          <span>${field.label}</span>
+          <label for="${field.name}">${field.label}${field.required ? ' *' : ''}</label>
           ${await this.renderFieldInput(field)}
         </div>
       `)
@@ -54,90 +52,49 @@ export class SmartModalForm {
 
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     this.bindEvents();
-    
-    // Load relation data after modal is rendered
-    await this.updateRelationOptions();
   }
 
   async renderFieldInput(field) {
+    const fieldId = `${this.id}-${field.name}`;
+    
     switch (field.componentType || field.type) {
       case 'select':
-      case 'relation':
-        // For relations, we'll load options dynamically
-        const options = await this.getFieldOptions(field);
-        return `<select id="${field.name}" ${field.required ? 'required' : ''}>
+        const staticOptions = field.options || [];
+        const optionsHTML = staticOptions.map(opt => 
+          `<option value="${opt.value || opt}">${opt.label || opt}</option>`
+        ).join('');
+        return `<select id="${fieldId}" name="${field.name}" ${field.required ? 'required' : ''}>
           <option value="">-- Seleccionar --</option>
-          ${options}
+          ${optionsHTML}
+        </select>`;
+      
+      case 'relation':
+        const relationOptions = await this.onLoadRelations(field);
+        const relationHTML = relationOptions.map(opt => 
+          `<option value="${opt.id}">${opt.label}</option>`
+        ).join('');
+        return `<select id="${fieldId}" name="${field.name}" ${field.required ? 'required' : ''}>
+          <option value="">-- Seleccionar --</option>
+          ${relationHTML}
         </select>`;
       
       case 'checkbox':
-        return `<input type="checkbox" id="${field.name}" ${field.checked ? 'checked' : ''}>`;
+        return `<input type="checkbox" id="${fieldId}" name="${field.name}">`;
       
       case 'textarea':
-        return `<textarea id="${field.name}" ${field.required ? 'required' : ''} rows="4"></textarea>`;
+        return `<textarea id="${fieldId}" name="${field.name}" ${field.required ? 'required' : ''} rows="4"></textarea>`;
       
       case 'date':
-        return `<input type="date" id="${field.name}" ${field.required ? 'required' : ''}>`;
+        return `<input type="date" id="${fieldId}" name="${field.name}" ${field.required ? 'required' : ''}>`;
       
       case 'number':
-        return `<input type="number" id="${field.name}" ${field.required ? 'required' : ''} 
-                step="${field.step || '0.01'}" ${field.min ? `min="${field.min}"` : ''}>`;
+        return `<input type="number" id="${fieldId}" name="${field.name}" ${field.required ? 'required' : ''} 
+                step="${field.step || '1'}" ${field.min ? `min="${field.min}"` : ''} ${field.max ? `max="${field.max}"` : ''}>`;
       
       default:
-        return `<input type="${field.type || 'text'}" id="${field.name}" 
+        return `<input type="${field.type || 'text'}" id="${fieldId}" name="${field.name}" 
                 ${field.required ? 'required' : ''} 
                 ${field.placeholder ? `placeholder="${field.placeholder}"` : ''}>`;
-    }
-  }
-
-  async getFieldOptions(field) {
-    // If field has static options, use them
-    if (field.options && Array.isArray(field.options)) {
-      return field.options.map(opt => 
-        `<option value="${opt.value}">${opt.label}</option>`
-      ).join('');
-    }
-    
-    // If field is a relation, load options from cache or server
-    if (field.type === 'relation' || field.componentType === 'relation') {
-      const options = await this.loadRelationOptions(field);
-      return options.map(opt => 
-        `<option value="${opt.id}">${opt.label}</option>`
-      ).join('');
-    }
-    
-    return '';
-  }
-
-  async loadRelationOptions(field) {
-    const cacheKey = field.relationCollection || field.name;
-    
-    // Check cache first
-    if (this.relationCache.has(cacheKey)) {
-      return this.relationCache.get(cacheKey);
-    }
-    
-    // Load via callback if provided
-    if (this.onLoadRelations) {
-      const options = await this.onLoadRelations(field);
-      this.relationCache.set(cacheKey, options);
-      return options;
-    }
-    
-    // Default empty
-    return [];
-  }
-
-  async updateRelationOptions() {
-    // Update all relation select elements with fresh data
-    for (const field of this.fields) {
-      if (field.type === 'relation' || field.componentType === 'relation') {
-        const element = document.getElementById(field.name);
-        if (element) {
-          const options = await this.getFieldOptions(field);
-          element.innerHTML = `<option value="">-- Seleccionar --</option>${options}`;
-        }
-      }
     }
   }
 
@@ -156,59 +113,55 @@ export class SmartModalForm {
         await this.onSubmit(formData, this.currentData?.id);
         this.close();
       } catch (error) {
-        const errorEl = document.getElementById(`${this.id}-error`);
-        if (errorEl) {
-          errorEl.textContent = error.message || 'Error al guardar';
-        }
+        this.showError(error.message || 'Error al guardar');
       }
     });
   }
 
   getFormData() {
     const data = {};
+    const form = document.getElementById(`${this.id}-form`);
+    if (!form) return data;
+    
+    const formData = new FormData(form);
+    
     this.fields.forEach(field => {
-      const element = document.getElementById(field.name);
+      const element = document.getElementById(`${this.id}-${field.name}`);
       if (element) {
         if (field.componentType === 'checkbox') {
           data[field.name] = element.checked;
         } else if (field.type === 'number') {
           data[field.name] = element.value ? parseFloat(element.value) : null;
-        } else if (field.type === 'json') {
-          try {
-            data[field.name] = JSON.parse(element.value);
-          } catch {
-            data[field.name] = element.value;
-          }
         } else {
-          data[field.name] = element.value;
+          data[field.name] = formData.get(field.name);
         }
       }
     });
+    
     return data;
   }
 
   async populateForm(data) {
     this.fields.forEach(field => {
-      const element = document.getElementById(field.name);
-      if (element && data[field.name] !== undefined) {
+      const element = document.getElementById(`${this.id}-${field.name}`);
+      if (element && data[field.name] !== undefined && data[field.name] !== null) {
         if (field.componentType === 'checkbox') {
           element.checked = Boolean(data[field.name]);
+        } else if (field.type === 'select' || field.componentType === 'relation') {
+          // Set select value
+          element.value = data[field.name];
         } else {
           element.value = data[field.name];
         }
       }
     });
-    
-    // Force update of relation fields to set correct selected option
-    setTimeout(() => {
-      this.fields.forEach(field => {
-        const element = document.getElementById(field.name);
-        if (element && data[field.name] !== undefined && 
-            (field.type === 'relation' || field.componentType === 'relation')) {
-          element.value = data[field.name];
-        }
-      });
-    }, 100);
+  }
+
+  show() {
+    const modal = document.getElementById(this.id);
+    if (modal) {
+      modal.style.display = 'block';
+    }
   }
 
   close() {
@@ -217,5 +170,13 @@ export class SmartModalForm {
       modal.style.display = 'none';
     }
     this.currentData = null;
+  }
+
+  showError(message) {
+    const errorEl = document.getElementById(`${this.id}-error`);
+    if (errorEl) {
+      errorEl.textContent = message;
+      setTimeout(() => errorEl.textContent = '', 5000);
+    }
   }
 }

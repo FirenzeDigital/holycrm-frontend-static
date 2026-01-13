@@ -1,20 +1,27 @@
-// assets/js/core/DataService.js (FIXED)
+// assets/js/core/DataService.js
 import { pb } from '../auth.js';
 
 export class DataService {
   constructor(collectionName, churchFieldName = 'church') {
     this.collection = pb.collection(collectionName);
     this.churchFieldName = churchFieldName;
-    this.isChurchSpecific = true; // Default to church-specific collections
+    this.isChurchSpecific = true;
   }
 
-  async getList(churchId, expand = '', sort = '-created') {
+  async getList(churchId, expand = '', sort = '-created', filter = '') {
     try {
-      const params = { sort };
+      let fullFilter = filter;
       
       // Only filter by church if it's a church-specific collection AND churchId is provided
       if (this.isChurchSpecific && churchId) {
-        params.filter = `${this.churchFieldName} = "${churchId}"`;
+        const churchFilter = `${this.churchFieldName} = "${churchId}"`;
+        fullFilter = fullFilter ? `(${fullFilter}) && (${churchFilter})` : churchFilter;
+      }
+      
+      const params = { sort };
+      
+      if (fullFilter) {
+        params.filter = fullFilter;
       }
       
       if (expand) {
@@ -23,11 +30,11 @@ export class DataService {
       
       console.log(`[DataService] Fetching ${this.collection.name}`, params);
       const result = await this.collection.getFullList(params);
-      console.log(`[DataService] Got ${result.length} records`);
+      console.log(`[DataService] Got ${result.length} records for ${this.collection.name}`);
       return result;
     } catch (error) {
       console.error(`[DataService] Error fetching ${this.collection.name}:`, error);
-      return [];
+      throw error;
     }
   }
 
@@ -71,7 +78,6 @@ export class DataService {
     }
   }
 
-  // For non-church-specific collections (like lookup tables)
   markAsGlobal() {
     this.isChurchSpecific = false;
     return this;

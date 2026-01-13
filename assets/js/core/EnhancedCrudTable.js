@@ -1,4 +1,4 @@
-// assets/js/core/EnhancedCrudTable.js (NOW THE DEFAULT)
+// assets/js/core/EnhancedCrudTable.js
 import { can } from '../permissions.js';
 
 export class EnhancedCrudTable {
@@ -11,7 +11,7 @@ export class EnhancedCrudTable {
     this.onDelete = config.onDelete;
     this.headerContainer = config.headerContainer;
     this.searchInput = config.searchInput;
-    this.expand = config.expand || ''; // For relation fields
+    this.expand = config.expand || '';
     this.originalData = [];
     
     if (this.searchInput) {
@@ -25,7 +25,6 @@ export class EnhancedCrudTable {
       : this.searchInput;
     
     if (input) {
-      // Add debouncing for better performance
       let timeout;
       input.addEventListener('input', (e) => {
         clearTimeout(timeout);
@@ -44,7 +43,6 @@ export class EnhancedCrudTable {
     
     const term = searchTerm.toLowerCase().trim();
     const filtered = this.originalData.filter(item => {
-      // Search across all displayed columns
       return this.columns.some(col => {
         const value = this.getCellValue(item, col.key);
         return String(value).toLowerCase().includes(term);
@@ -57,17 +55,38 @@ export class EnhancedCrudTable {
   getCellValue(item, key) {
     if (key.includes('.')) {
       // Handle nested properties (expand.relation.field)
-      return key.split('.').reduce((obj, k) => obj?.[k], item) || '';
+      const parts = key.split('.');
+      let value = item;
+      
+      for (const part of parts) {
+        if (value && typeof value === 'object') {
+          value = value[part];
+        } else {
+          return '';
+        }
+      }
+      
+      // For relations, try to get a display value
+      if (value && typeof value === 'object') {
+        return value.name || value.title || 
+               (value.first_name && value.last_name ? value.first_name + ' ' + value.last_name : '') ||
+               value.id || '';
+      }
+      
+      return value || '';
     }
+    
+    // Handle direct fields
     return item[key] || '';
   }
 
   render(data) {
     this.currentData = data;
+    this.originalData = [...data]; // Keep a copy for filtering
+    
     const tableBody = this.getElement(this.container);
     if (!tableBody) return;
 
-    // Render headers if needed
     this.renderHeaders();
 
     tableBody.innerHTML = data.length ? 
@@ -107,7 +126,7 @@ export class EnhancedCrudTable {
   renderRow(item) {
     const cells = this.columns.map(col => {
       const value = this.getCellValue(item, col.key);
-      return `<td>${col.format ? col.format(value, item) : this.escapeHtml(value)}</td>`;
+      return `<td>${col.format ? col.format(value, item) : this.escapeHtml(String(value))}</td>`;
     });
 
     const actions = [];

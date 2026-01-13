@@ -1,4 +1,4 @@
-// assets/js/core/EnhancedModuleGenerator.js (COMPLETELY REWRITTEN)
+// assets/js/core/EnhancedModuleGenerator.js
 export class EnhancedModuleGenerator {
   constructor() {
     this.fieldTypeMap = {
@@ -10,17 +10,6 @@ export class EnhancedModuleGenerator {
       'date': { type: 'date', component: 'input' },
       'relation': { type: 'select', component: 'relation' },
       'json': { type: 'textarea', component: 'textarea' }
-    };
-    
-    // Map common relation collections to their display fields
-    this.relationDisplayFields = {
-      'members': 'first_name,last_name',
-      'ministries': 'name',
-      'locations': 'name',
-      'service_roles': 'name',
-      'finance_categories': 'name',
-      'groups': 'name',
-      'events': 'title'
     };
   }
 
@@ -42,7 +31,7 @@ export class EnhancedModuleGenerator {
       // Check for church field
       if (field.name === 'church' && field.type === 'relation') {
         schema.hasChurchField = true;
-        return; // Skip adding to form/table, we'll handle it automatically
+        return;
       }
 
       const fieldInfo = {
@@ -50,42 +39,25 @@ export class EnhancedModuleGenerator {
         type: field.type,
         required: field.required || false,
         label: this.formatLabel(field.name),
-        options: field.values || [],
-        relation: field.collectionId || null,
-        relationCollection: field.collectionId ? this.getCollectionNameById(field.collectionId) : null
+        options: field.values || []
       };
 
       // Handle special field types
       if (field.type === 'relation') {
         fieldInfo.componentType = 'relation';
         fieldInfo.inputType = 'select';
-        fieldInfo.relationCollection = this.getCollectionNameById(field.collectionId);
+        fieldInfo.relationCollection = field.collectionId;
+        fieldInfo.maxSelect = field.maxSelect || 1;
       } else {
         const mapped = this.fieldTypeMap[field.type] || { type: 'text', component: 'input' };
         fieldInfo.componentType = mapped.component;
         fieldInfo.inputType = mapped.type;
       }
 
-      // Special handling for JSON fields
-      if (field.type === 'json') {
-        fieldInfo.placeholder = 'Ej: ["tag1", "tag2"]';
-      }
-
       schema.fields.push(fieldInfo);
     });
 
-    // If no church field, mark as global
-    if (!schema.hasChurchField) {
-      schema.isChurchSpecific = false;
-    }
-
     return schema;
-  }
-
-  getCollectionNameById(collectionId) {
-    // In a real app, you'd have a map of collection IDs to names
-    // For now, we'll return a placeholder
-    return collectionId ? `collection_${collectionId}` : null;
   }
 
   formatLabel(fieldName) {
@@ -100,107 +72,99 @@ export class EnhancedModuleGenerator {
       'notes': 'Notas',
       'tags': 'Etiquetas',
       'date': 'Fecha',
-      'amount_cents': 'Monto (centavos)',
+      'amount': 'Monto',
       'currency': 'Moneda',
       'concept': 'Concepto',
-      'leader_member': 'Líder/Miembro',
+      'leader_member': 'Líder',
       'location': 'Ubicación',
       'category': 'Categoría',
       'ministry': 'Ministerio',
       'event': 'Evento',
-      'member': 'Miembro'
+      'member': 'Miembro',
+      'city': 'Ciudad',
+      'pastor_name': 'Nombre del Pastor',
+      'inauguration_date': 'Fecha de Inauguración'
     };
     
-    if (labelMap[fieldName]) {
-      return labelMap[fieldName];
-    }
-    
-    return fieldName
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+    return labelMap[fieldName] || 
+      fieldName.split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
   }
 
   generateModule(config) {
     const { schema, tableColumns, formFields, moduleName, moduleLabel, icon } = config;
     
     const capitalizedModuleName = this.toPascalCase(moduleName);
+    const relationFields = formFields.filter(f => f.type === 'relation');
+    const hasRelations = relationFields.length > 0;
     
-    // Determine if we need relation loading logic
-    const hasRelations = formFields.some(f => f.type === 'relation');
-    const relationCollections = [...new Set(
-      formFields
-        .filter(f => f.type === 'relation' && f.relationCollection)
-        .map(f => f.relationCollection)
-    )];
-    
-    const template = this.getModuleTemplate(hasRelations, relationCollections, schema.isChurchSpecific);
-    
-    let code = template
-      .replace(/{{MODULE_NAME}}/g, moduleName)
-      .replace(/{{CAPITALIZED_MODULE_NAME}}/g, capitalizedModuleName)
-      .replace(/{{MODULE_LABEL}}/g, moduleLabel)
-      .replace(/{{COLLECTION_NAME}}/g, schema.collectionName)
-      .replace(/{{ICON}}/g, icon)
-      .replace(/{{TABLE_COLUMNS}}/g, JSON.stringify(tableColumns, null, 2))
-      .replace(/{{FORM_FIELDS}}/g, JSON.stringify(formFields, null, 2))
-      .replace(/{{PERMISSION_KEY}}/g, moduleName)
-      .replace(/{{IS_CHURCH_SPECIFIC}}/g, schema.isChurchSpecific ? 'true' : 'false')
-      .replace(/{{RELATION_COLLECTIONS}}/g, JSON.stringify(relationCollections, null, 2));
-    
-    return code;
-  }
-
-  toPascalCase(str) {
-    return str.replace(/(^\w|_\w)/g, match => 
-      match.replace('_', '').toUpperCase()
-    );
-  }
-
-  getModuleTemplate(hasRelations, relationCollections, isChurchSpecific) {
     let relationLoadingCode = '';
     let relationServicesCode = '';
-    let loadRelationsFunction = '';
     
-    if (hasRelations && relationCollections.length > 0) {
-      relationServicesCode = `
-  // Services for relation data
-  ${relationCollections.map(col => {
-    const serviceName = this.toCamelCase(col) + 'Service';
-    return `let ${serviceName};`;
-  }).join('\n  ')}
-      `;
+    if (hasRelations) {
+      const uniqueCollections = [...new Set(
+        relationFields
+          .map(f => this.getCollectionNameFromId(f.relationCollection))
+          .filter(Boolean)
+      )];
+      
+      relationServicesCode = uniqueCollections.map(col => {
+        const varName = this.toCamelCase(col) + 'Service';
+        return `let ${varName};`;
+      }).join('\n  ');
       
       relationLoadingCode = `
-  // Load relation data for dropdowns
+  // Load relation data
   async function loadRelationData() {
-    ${relationCollections.map(col => {
+    ${uniqueCollections.map(col => {
       const serviceName = this.toCamelCase(col) + 'Service';
-      const varName = col + 'Data';
+      const varName = this.toCamelCase(col) + 'Data';
       return `
+    ${serviceName} = new DataService('${col}');
     const ${varName} = await ${serviceName}.getList(currentChurchId);
-    console.log('Loaded ${col}:', ${varName}.length);
-    return { '${col}': ${varName} };`;
-    }).join('\n    ')}
+    console.log('Loaded ${col}:', ${varName}.length);`;
+    }).join('')}
     
-    return Object.assign({}, ${relationCollections.map(col => `'${col}': ${col}Data`).join(', ')});
+    return {
+      ${uniqueCollections.map(col => {
+        const varName = this.toCamelCase(col) + 'Data';
+        return `'${col}': ${varName}`;
+      }).join(',\n      ')}
+    };
   }
-      `;
-      
-      loadRelationsFunction = `
+  
   async function loadRelationOptions(field) {
     if (field.type !== 'relation') return [];
     
-    const data = relationData[field.relationCollection] || [];
+    const collectionName = getCollectionNameFromId(field.relationCollection);
+    const data = relationData[collectionName] || [];
+    
     return data.map(item => ({
       id: item.id,
-      label: ${this.getRelationLabelLogic()}
+      label: getDisplayLabel(item)
     }));
+  }
+  
+  function getCollectionNameFromId(collectionId) {
+    // Map collection IDs to names
+    const idMap = {
+      ${relationFields.map(f => `'${f.relationCollection}': '${this.getCollectionNameFromId(f.relationCollection)}'`).join(',\n      ')}
+    };
+    return idMap[collectionId] || collectionId;
+  }
+  
+  function getDisplayLabel(item) {
+    if (item.name) return item.name;
+    if (item.title) return item.title;
+    if (item.first_name && item.last_name) return item.first_name + ' ' + item.last_name;
+    return item.id;
   }
       `;
     }
-    
-    return `// Generated module for {{MODULE_LABEL}}
+
+    const template = `
+// Generated module for ${moduleLabel}
 import { can } from "./permissions.js";
 import { DataService } from "./core/DataService.js";
 import { EnhancedCrudTable } from "./core/EnhancedCrudTable.js";
@@ -212,30 +176,23 @@ let table, modal;
 ${relationServicesCode}
 let relationData = {};
 
-export async function init{{CAPITALIZED_MODULE_NAME}}View(church) {
+export async function init${capitalizedModuleName}View(church) {
   if (!church) return;
   currentChurchId = church.id;
 
   // Initialize main service
-  dataService = new DataService('{{COLLECTION_NAME}}'${isChurchSpecific ? '' : ', null'});
-  ${!isChurchSpecific ? 'dataService.markAsGlobal();' : ''}
-
-  // Initialize relation services
-  ${hasRelations ? relationCollections.map(col => {
-    const serviceName = this.toCamelCase(col) + 'Service';
-    return `
-  ${serviceName} = new DataService('${col}');`;
-  }).join('\n  ') : ''}
+  dataService = new DataService('${schema.collectionName}');
+  ${!schema.isChurchSpecific ? 'dataService.markAsGlobal();' : ''}
 
   // Check permissions
-  const section = document.querySelector('section[data-view="{{MODULE_NAME}}"]');
-  if (!can("read", "{{PERMISSION_KEY}}")) {
+  const section = document.querySelector('section[data-view="${moduleName}"]');
+  if (!can("read", "${moduleName}")) {
     section.innerHTML = '<h1>Sin permisos</h1>';
     return;
   }
 
   // Render layout once
-  if (!section.querySelector("#{{MODULE_NAME}}-body")) {
+  if (!section.querySelector("#${moduleName}-body")) {
     renderLayout(section);
   }
 
@@ -252,35 +209,43 @@ async function initComponents() {
 
   // Configure and create table
   table = new EnhancedCrudTable({
-    container: '#{{MODULE_NAME}}-body',
-    headerContainer: '#{{MODULE_NAME}}-headers',
-    columns: {{TABLE_COLUMNS}},
-    canEdit: can("update", "{{PERMISSION_KEY}}"),
-    canDelete: can("delete", "{{PERMISSION_KEY}}"),
+    container: '#${moduleName}-body',
+    headerContainer: '#${moduleName}-headers',
+    columns: ${JSON.stringify(tableColumns, null, 2)},
+    canEdit: can("update", "${moduleName}"),
+    canDelete: can("delete", "${moduleName}"),
     onEdit: openRecordModal,
     onDelete: deleteRecord,
-    searchInput: '#{{MODULE_NAME}}-search'
+    searchInput: '#${moduleName}-search',
+    expand: ${hasRelations ? "'" + relationFields.map(f => f.name).join(',') + "'" : "''"}
   });
 
   // Configure and create modal form
   modal = new SmartModalForm({
-    id: '{{MODULE_NAME}}-modal',
-    title: '{{MODULE_LABEL}}',
-    fields: {{FORM_FIELDS}},
+    id: '${moduleName}-modal',
+    title: '${moduleLabel}',
+    fields: ${JSON.stringify(formFields, null, 2)},
     onSubmit: saveRecord,
-    onLoadRelations: loadRelationOptions
+    onLoadRelations: ${hasRelations ? 'loadRelationOptions' : '() => []'}
   });
 
   // Wire up the "New" button
-  document.getElementById('{{MODULE_NAME}}-new')?.addEventListener('click', () => openRecordModal());
+  document.getElementById('${moduleName}-new')?.addEventListener('click', () => openRecordModal());
 }
 
 ${relationLoadingCode || ''}
-${loadRelationsFunction || ''}
 
 async function refreshData() {
   console.log('Refreshing data for church:', currentChurchId);
-  const data = await dataService.getList(currentChurchId);
+  
+  // Build expand parameter for relations
+  let expand = '';
+  ${hasRelations ? `
+  const expandFields = ${JSON.stringify(relationFields.map(f => f.name))};
+  expand = expandFields.join(',');
+  ` : ''}
+  
+  const data = await dataService.getList(currentChurchId, expand);
   console.log('Got data:', data.length, 'records');
   table.render(data);
 }
@@ -299,7 +264,7 @@ async function saveRecord(data, id = null) {
   console.log('Saving record:', data);
   
   const payload = {
-    ...data${isChurchSpecific ? ',\n    church: currentChurchId' : ''}
+    ...data${schema.isChurchSpecific ? ',\n    church: currentChurchId' : ''}
   };
 
   if (id) {
@@ -320,15 +285,15 @@ async function deleteRecord(id) {
 
 function renderLayout(section) {
   section.innerHTML = \`
-    <h1>{{MODULE_LABEL}}</h1>
+    <h1>${moduleLabel}</h1>
     
     <div class="card">
       <div class="members-toolbar">
         <div class="members-search">
-          <input type="search" placeholder="Buscar..." id="{{MODULE_NAME}}-search">
+          <input type="search" placeholder="Buscar..." id="${moduleName}-search">
         </div>
         <div class="members-actions">
-          \${can("create", "{{PERMISSION_KEY}}") ? \`<button id="{{MODULE_NAME}}-new">Nuevo</button>\` : ""}
+          \${can("create", "${moduleName}") ? \`<button id="${moduleName}-new">Nuevo</button>\` : ""}
         </div>
       </div>
     </div>
@@ -336,21 +301,30 @@ function renderLayout(section) {
     <div class="card">
       <table class="users-table">
         <thead>
-          <tr id="{{MODULE_NAME}}-headers"></tr>
+          <tr id="${moduleName}-headers"></tr>
         </thead>
-        <tbody id="{{MODULE_NAME}}-body"></tbody>
+        <tbody id="${moduleName}-body"></tbody>
       </table>
     </div>
   \`;
 }`;
+
+    return template;
+  }
+
+  getCollectionNameFromId(collectionId) {
+    // This should map to your actual collection names
+    // For now, return a placeholder - you'll need to implement this
+    return `collection_${collectionId}`;
+  }
+
+  toPascalCase(str) {
+    return str.replace(/(^\w|_\w)/g, match => 
+      match.replace('_', '').toUpperCase()
+    );
   }
 
   toCamelCase(str) {
     return str.replace(/[_-](\w)/g, (_, letter) => letter.toUpperCase());
-  }
-
-  getRelationLabelLogic() {
-    // This would generate logic based on the relationDisplayFields map
-    return `item.name || item.title || item.first_name + ' ' + item.last_name || item.id`;
   }
 }
