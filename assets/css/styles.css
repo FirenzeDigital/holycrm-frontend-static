@@ -819,3 +819,206 @@ body.sidebar-collapsed .sidebar-menu a::before{
   background: #ffebee;
   border-radius: 4px;
 }
+
+
+
+
+
+
+
+/* ===== Mobile table cards ===== */
+@media (max-width: 900px) {
+  /* Hide table headers */
+  .users-table thead {
+    display: none;
+  }
+  
+  /* Make table, tbody, tr, td block elements */
+  .users-table,
+  .users-table tbody,
+  .users-table tr,
+  .users-table td {
+    display: block;
+    width: 100%;
+  }
+  
+  /* Style each row as a card */
+  .users-table tr {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 15px;
+    margin-bottom: 12px;
+    background: var(--card);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  
+  /* Remove default table borders */
+  .users-table td {
+    border: none !important;
+    padding: 8px 0 !important;
+    text-align: left !important;
+  }
+  
+  /* Add field labels before each value */
+  .users-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  /* Special styling for actions cell */
+  .users-table td.row-actions {
+    padding-top: 15px !important;
+    border-top: 1px solid rgba(0,0,0,0.1) !important;
+    margin-top: 10px;
+  }
+  
+  .users-table td.row-actions::before {
+    content: "Acciones" !important;
+    font-size: 13px !important;
+    margin-bottom: 8px !important;
+  }
+  
+  .users-table td.row-actions button {
+    margin: 0 5px 5px 0 !important;
+    padding: 6px 12px !important;
+    font-size: 13px !important;
+  }
+  
+  /* Hide the column toggle button on mobile */
+  .column-toggle-btn {
+    display: none;
+  }
+}
+
+/* ===== Column toggle styles ===== */
+.column-toggle-container {
+  position: relative;
+  display: inline-block;
+}
+
+.column-toggle-btn {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.2s;
+}
+
+.column-toggle-btn:hover {
+  background: rgba(37,99,235,0.1);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.column-selector {
+  position: fixed;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 15px;
+  z-index: 1050;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  backdrop-filter: blur(10px);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.column-selector label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  cursor: pointer;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.column-selector label:last-child {
+  border-bottom: none;
+}
+
+.column-selector input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.column-selector button {
+  font-size: 12px;
+  padding: 6px 12px;
+  margin-right: 8px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.column-selector button:hover {
+  opacity: 0.9;
+}
+
+/* ===== Additional improvements ===== */
+/* Ensure consistent button styling */
+.edit-btn, .delete-btn {
+  transition: all 0.2s;
+}
+
+.edit-btn:hover {
+  background: #1976d2 !important;
+  transform: translateY(-1px);
+}
+
+.delete-btn:hover {
+  background: #d32f2f !important;
+  color: white !important;
+  transform: translateY(-1px);
+}
+
+/* Improve table row hover on desktop */
+@media (min-width: 901px) {
+  .users-table tbody tr:hover {
+    background: rgba(37,99,235,0.03);
+  }
+  
+  .users-table tbody tr:hover td {
+    border-color: rgba(37,99,235,0.1);
+  }
+}
+
+/* Make sure the table is responsive */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Improve modal on mobile */
+@media (max-width: 600px) {
+  .modal-card {
+    width: calc(100% - 20px);
+    margin: 20px 10px;
+    max-height: 85vh;
+  }
+  
+  .modal-body {
+    padding: 15px;
+  }
+  
+  .modal-footer {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .modal-footer button {
+    width: 100%;
+  }
+}

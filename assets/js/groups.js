@@ -1,19 +1,22 @@
 // Generated module for Groups
 import { can } from "./permissions.js";
 import { DataService } from "./core/DataService.js";
-import { CrudTable } from "./core/CrudTable.js";
-import { ModalForm } from "./core/ModalForm.js";
+import { EnhancedCrudTable } from "./core/EnhancedCrudTable.js";
+import { SmartModalForm } from "./core/SmartModalForm.js";
 
 let currentChurchId = null;
 let dataService;
 let table, modal;
 
+let relationData = {};
+
 export async function initGroupsView(church) {
   if (!church) return;
   currentChurchId = church.id;
 
-  // Initialize service
+  // Initialize main service
   dataService = new DataService('groups');
+  
 
   // Check permissions
   const section = document.querySelector('section[data-view="groups"]');
@@ -33,14 +36,16 @@ export async function initGroupsView(church) {
 }
 
 async function initComponents() {
+  
+
   // Configure and create table
-  table = new CrudTable({
+  table = new EnhancedCrudTable({
     container: '#groups-body',
     headerContainer: '#groups-headers',
     columns: [
   {
     "key": "name",
-    "label": "Name",
+    "label": "Nombre",
     "format": null
   },
   {
@@ -59,25 +64,32 @@ async function initComponents() {
     "format": null
   },
   {
+    "key": "location",
+    "label": "Ubicación",
+    "format": null
+  },
+  {
     "key": "status",
-    "label": "Status",
+    "label": "Estado",
     "format": null
   }
 ],
     canEdit: can("update", "groups"),
     canDelete: can("delete", "groups"),
     onEdit: openRecordModal,
-    onDelete: deleteRecord
+    onDelete: deleteRecord,
+    searchInput: '#groups-search',
+    expand: ''
   });
 
   // Configure and create modal form
-  modal = new ModalForm({
+  modal = new SmartModalForm({
     id: 'groups-modal',
     title: 'Groups',
     fields: [
   {
     "name": "name",
-    "label": "Name",
+    "label": "Nombre",
     "type": "text",
     "required": true
   },
@@ -93,7 +105,7 @@ async function initComponents() {
       },
       {
         "value": "ministry",
-        "label": "Ministry"
+        "label": "Ministerio"
       },
       {
         "value": "team",
@@ -107,7 +119,7 @@ async function initComponents() {
   },
   {
     "name": "description",
-    "label": "Description",
+    "label": "Descripción",
     "type": "text",
     "required": false
   },
@@ -155,13 +167,13 @@ async function initComponents() {
   },
   {
     "name": "location",
-    "label": "Location",
+    "label": "Ubicación",
     "type": "text",
     "required": false
   },
   {
     "name": "status",
-    "label": "Status",
+    "label": "Estado",
     "type": "select",
     "required": false,
     "options": [
@@ -177,48 +189,72 @@ async function initComponents() {
   },
   {
     "name": "tags",
-    "label": "Tags",
-    "type": "text",
-    "required": false
+    "label": "Etiquetas",
+    "type": "textarea",
+    "required": false,
+    "placeholder": "Ej: [\"tag1\", \"tag2\"]"
   }
 ],
-    onSubmit: saveRecord
+    onSubmit: saveRecord,
+    onLoadRelations: () => []
   });
 
   // Wire up the "New" button
   document.getElementById('groups-new')?.addEventListener('click', () => openRecordModal());
 }
 
+
+
 async function refreshData() {
-  const data = await dataService.getList(currentChurchId);
+  console.log('Refreshing data for church:', currentChurchId);
+  
+  // Build expand parameter for relations
+  let expand = '';
+  
+  
+  const data = await dataService.getList(currentChurchId, expand);
+  console.log('Got data:', data.length, 'records');
   table.render(data);
 }
 
 async function openRecordModal(id = null) {
   if (id) {
     const record = await dataService.getOne(id);
-    modal.open(record);
+    console.log('Opening record:', record);
+    await modal.open(record);
   } else {
-    modal.open({});
+    await modal.open({});
   }
 }
 
 async function saveRecord(data, id = null) {
+  console.log('Saving record. ID:', id, 'Data:', data);
+  
   const payload = {
     ...data,
-    church: currentChurchId  // Auto-fill church ID for multi-tenancy
+    church: currentChurchId
   };
 
-  if (id) {
-    await dataService.update(id, payload);
-  } else {
-    await dataService.create(payload);
+  try {
+    if (id) {
+      console.log('Updating existing record:', id);
+      await dataService.update(id, payload);
+    } else {
+      console.log('Creating new record');
+      await dataService.create(payload);
+    }
+    
+    await refreshData();
+  } catch (error) {
+    console.error('Error saving record:', error);
+    alert('Error al guardar: ' + error.message);
+    throw error;
   }
-  
-  await refreshData();
 }
 
 async function deleteRecord(id) {
+  if (!confirm('¿Eliminar registro?')) return;
+  
   await dataService.delete(id);
   await refreshData();
 }

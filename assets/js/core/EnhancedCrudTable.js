@@ -15,10 +15,23 @@ export class EnhancedCrudTable {
     this.originalData = [];
     this.filteredData = [];
     this.currentFilter = '';
+    this.visibleColumns = this.getVisibleColumnsFromStorage() || 
+      this.columns.map(col => col.key); // Default: all columns visible
     
     if (this.searchInput) {
       this.setupSearch();
     }
+  }
+  
+  getVisibleColumnsFromStorage() {
+    const moduleName = this.container.replace('#', '').replace('-body', '');
+    const stored = localStorage.getItem(`tableColumns_${moduleName}`);
+    return stored ? JSON.parse(stored) : null;
+  }
+  
+  saveVisibleColumnsToStorage() {
+    const moduleName = this.container.replace('#', '').replace('-body', '');
+    localStorage.setItem(`tableColumns_${moduleName}`, JSON.stringify(this.visibleColumns));
   }
   
   setupSearch() {
@@ -61,7 +74,7 @@ export class EnhancedCrudTable {
     
     const term = searchTerm.toLowerCase().trim();
     this.filteredData = this.originalData.filter(item => {
-      // Search across all displayed columns
+      // Search across all displayed columns (including hidden ones for search)
       return this.columns.some(col => {
         const value = this.getCellValue(item, col.key);
         return String(value).toLowerCase().includes(term);
@@ -128,9 +141,16 @@ export class EnhancedCrudTable {
     if (this.headerContainer) {
       const headerRow = this.getElement(this.headerContainer);
       if (headerRow) {
-        headerRow.innerHTML = this.columns.map(col => 
-          `<th>${col.label}</th>`
-        ).join('') + '<th></th>';
+        // Only show visible columns
+        const visibleColumnHeaders = this.columns
+          .filter(col => this.visibleColumns.includes(col.key))
+          .map(col => `<th>${col.label}</th>`)
+          .join('');
+        
+        headerRow.innerHTML = visibleColumnHeaders + '<th><div class="column-toggle-container"></div></th>';
+        
+        // Add column toggle button
+        this.addColumnToggle(headerRow.querySelector('.column-toggle-container'));
       }
     } else {
       const tableBody = this.getElement(this.container);
@@ -139,23 +159,143 @@ export class EnhancedCrudTable {
         if (table) {
           const thead = table.querySelector('thead');
           if (thead) {
+            const visibleColumnHeaders = this.columns
+              .filter(col => this.visibleColumns.includes(col.key))
+              .map(col => `<th>${col.label}</th>`)
+              .join('');
+            
             thead.innerHTML = `
               <tr>
-                ${this.columns.map(col => `<th>${col.label}</th>`).join('')}
-                <th></th>
+                ${visibleColumnHeaders}
+                <th><div class="column-toggle-container"></div></th>
               </tr>
             `;
+            
+            // Add column toggle button
+            this.addColumnToggle(thead.querySelector('.column-toggle-container'));
           }
         }
       }
     }
   }
+  
+  addColumnToggle(container) {
+    if (!container) return;
+    
+    const toggleButton = document.createElement('button');
+    toggleButton.className = 'column-toggle-btn';
+    toggleButton.innerHTML = '☰';
+    toggleButton.title = 'Mostrar/Ocultar columnas';
+    toggleButton.style.cssText = `
+      background: none;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 8px;
+      margin-left: 5px;
+    `;
+    
+    toggleButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleColumnSelector(e.target);
+    });
+    
+    container.appendChild(toggleButton);
+  }
+  
+  toggleColumnSelector(button) {
+    // Remove any existing selector
+    const existingSelector = document.querySelector('.column-selector');
+    if (existingSelector) {
+      existingSelector.remove();
+      return;
+    }
+    
+    // Create column selector
+    const selector = document.createElement('div');
+    selector.className = 'column-selector';
+    selector.style.cssText = `
+      position: absolute;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px;
+      z-index: 1000;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      min-width: 150px;
+    `;
+    
+    // Position near the button
+    const rect = button.getBoundingClientRect();
+    selector.style.top = `${rect.bottom + 5}px`;
+    selector.style.right = `${window.innerWidth - rect.right}px`;
+    
+    // Add column checkboxes
+    selector.innerHTML = `
+      <div style="margin-bottom: 8px; font-weight: 500; font-size: 14px;">Columnas:</div>
+      ${this.columns.map(col => `
+        <label style="display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer;">
+          <input type="checkbox" ${this.visibleColumns.includes(col.key) ? 'checked' : ''} 
+                 data-column="${col.key}">
+          <span>${col.label}</span>
+        </label>
+      `).join('')}
+      <div style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 8px;">
+        <button class="select-all" style="font-size: 12px; padding: 4px 8px; margin-right: 5px;">Todo</button>
+        <button class="deselect-all" style="font-size: 12px; padding: 4px 8px;">Ninguno</button>
+      </div>
+    `;
+    
+    // Add event listeners
+    selector.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', (e) => {
+        const columnKey = e.target.dataset.column;
+        if (e.target.checked) {
+          if (!this.visibleColumns.includes(columnKey)) {
+            this.visibleColumns.push(columnKey);
+          }
+        } else {
+          this.visibleColumns = this.visibleColumns.filter(key => key !== columnKey);
+        }
+        this.saveVisibleColumnsToStorage();
+        this.renderTable();
+      });
+    });
+    
+    selector.querySelector('.select-all').addEventListener('click', () => {
+      this.visibleColumns = this.columns.map(col => col.key);
+      this.saveVisibleColumnsToStorage();
+      this.renderTable();
+      selector.remove();
+    });
+    
+    selector.querySelector('.deselect-all').addEventListener('click', () => {
+      this.visibleColumns = [];
+      this.saveVisibleColumnsToStorage();
+      this.renderTable();
+      selector.remove();
+    });
+    
+    // Close when clicking outside
+    document.addEventListener('click', function closeSelector(e) {
+      if (!selector.contains(e.target) && e.target !== button) {
+        selector.remove();
+        document.removeEventListener('click', closeSelector);
+      }
+    });
+    
+    document.body.appendChild(selector);
+  }
 
   renderRow(item) {
-    const cells = this.columns.map(col => {
-      const value = this.getCellValue(item, col.key);
-      return `<td>${col.format ? col.format(value, item) : this.escapeHtml(String(value))}</td>`;
-    });
+    // Only show visible columns
+    const cells = this.columns
+      .filter(col => this.visibleColumns.includes(col.key))
+      .map(col => {
+        const value = this.getCellValue(item, col.key);
+        return `<td data-label="${col.label}">${col.format ? col.format(value, item) : this.escapeHtml(String(value))}</td>`;
+      });
 
     const actions = [];
     if (this.canEdit && this.onEdit) {
@@ -165,7 +305,7 @@ export class EnhancedCrudTable {
       actions.push(`<button class="danger-btn delete-btn" data-action="delete" data-id="${item.id}">Eliminar</button>`);
     }
 
-    return `<tr>${cells.join('')}<td class="row-actions">${actions.join('')}</td></tr>`;
+    return `<tr>${cells.join('')}<td class="row-actions" data-label="Acciones">${actions.join('')}</td></tr>`;
   }
 
   bindRowEvents(container) {
