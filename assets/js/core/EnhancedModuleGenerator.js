@@ -140,18 +140,35 @@ export class EnhancedModuleGenerator {
     const collectionName = getCollectionNameFromId(field.relationCollection);
     const data = relationData[collectionName] || [];
     
-    return data.map(item => ({
-      id: item.id,
-      label: getDisplayLabel(item)
-    }));
+    return data.map(item => {
+      // Get display label based on common field names
+      let label = item.id;
+      if (item.name) label = item.name;
+      else if (item.title) label = item.title;
+      else if (item.first_name && item.last_name) label = item.first_name + ' ' + item.last_name;
+      else if (item.email) label = item.email;
+      
+      return {
+        id: item.id,
+        label: label
+      };
+    });
   }
-  
+
   function getCollectionNameFromId(collectionId) {
-    // Map collection IDs to names
-    const idMap = {
-      ${relationFields.map(f => `'${f.relationCollection}': '${this.getCollectionNameFromId(f.relationCollection)}'`).join(',\n      ')}
+    // This should map your collection IDs to actual collection names
+    // For example, for members.js you might have:
+    // if collectionId is 'pbc_1942858786' (locations collection), return 'locations'
+    
+    // You can create a map based on your schema
+    const collectionMap = {
+      // Add your collection mappings here
+      // Example: 'pbc_1942858786': 'locations',
+      // 'pbc_2776461414': 'churches',
+      // etc.
     };
-    return idMap[collectionId] || collectionId;
+    
+    return collectionMap[collectionId] || `collection_${collectionId}`;
   }
   
   function getDisplayLabel(item) {

@@ -7,6 +7,7 @@ export class SmartModalForm {
     this.onSubmit = config.onSubmit;
     this.onLoadRelations = config.onLoadRelations || (() => []);
     this.currentData = null;
+    this.relationCache = new Map();
   }
 
   async open(data = {}) {
@@ -18,8 +19,8 @@ export class SmartModalForm {
 
   async renderModal() {
     if (document.getElementById(this.id)) {
-      // Modal exists, just clear it
-      await this.updateFormInputs();
+      // Modal exists, just update it
+      await this.updateRelationOptions();
       return;
     }
 
@@ -54,7 +55,7 @@ export class SmartModalForm {
 
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     this.bindEvents();
-    await this.updateFormInputs();
+    await this.updateRelationOptions();
   }
 
   getFieldId(field) {
@@ -67,18 +68,23 @@ export class SmartModalForm {
     switch (field.componentType || field.type) {
       case 'select':
         const staticOptions = field.options || [];
-        const optionsHTML = staticOptions.map(opt => 
+        const staticOptionsHTML = staticOptions.map(opt => 
           `<option value="${opt.value || opt}">${opt.label || opt}</option>`
         ).join('');
         return `<select id="${fieldId}" name="${field.name}" ${field.required ? 'required' : ''}>
           <option value="">-- Seleccionar --</option>
-          ${optionsHTML}
+          ${staticOptionsHTML}
         </select>`;
       
       case 'relation':
-        // We'll update options after modal renders
+        // For relation fields, we'll load options dynamically
+        const options = await this.loadRelationOptions(field);
+        const optionsHTML = options.map(opt => 
+          `<option value="${opt.id}">${opt.label}</option>`
+        ).join('');
         return `<select id="${fieldId}" name="${field.name}" ${field.required ? 'required' : ''}>
-          <option value="">Cargando opciones...</option>
+          <option value="">-- Seleccionar --</option>
+          ${optionsHTML}
         </select>`;
       
       case 'checkbox':
@@ -101,18 +107,42 @@ export class SmartModalForm {
     }
   }
 
-  async updateFormInputs() {
-    // Update all relation select elements
-    for (const field of this.fields) {
-      if (field.componentType === 'relation' || field.type === 'relation') {
-        const element = document.getElementById(this.getFieldId(field));
-        if (element) {
-          const options = await this.onLoadRelations(field);
-          const optionsHTML = options.map(opt => 
-            `<option value="${opt.id}">${opt.label}</option>`
-          ).join('');
-          element.innerHTML = `<option value="">-- Seleccionar --</option>${optionsHTML}`;
-        }
+  async loadRelationOptions(field) {
+    // Check cache first
+    const cacheKey = field.name;
+    if (this.relationCache.has(cacheKey)) {
+      return this.relationCache.get(cacheKey);
+    }
+    
+    // Load via callback
+    if (this.onLoadRelations) {
+      try {
+        const options = await this.onLoadRelations(field);
+        this.relationCache.set(cacheKey, options);
+        return options;
+      } catch (error) {
+        console.error(`Error loading relation options for ${field.name}:`, error);
+        return [];
+      }
+    }
+    
+    return [];
+  }
+
+  async updateRelationOptions() {
+    // Update all relation select elements with fresh data
+    const relationFields = this.fields.filter(f => 
+      f.type === 'relation' || f.componentType === 'relation'
+    );
+    
+    for (const field of relationFields) {
+      const element = document.getElementById(this.getFieldId(field));
+      if (element) {
+        const options = await this.loadRelationOptions(field);
+        const optionsHTML = options.map(opt => 
+          `<option value="${opt.id}">${opt.label}</option>`
+        ).join('');
+        element.innerHTML = `<option value="">-- Seleccionar --</option>${optionsHTML}`;
       }
     }
   }
@@ -121,29 +151,35 @@ export class SmartModalForm {
     const modal = document.getElementById(this.id);
     const form = document.getElementById(`${this.id}-form`);
 
-    // Clear any existing event listeners
-    const newModal = modal.cloneNode(true);
-    modal.parentNode.replaceChild(newModal, modal);
-
-    // Rebind events
-    newModal.querySelectorAll('[data-close="1"]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.close();
+    // Clear any existing event listeners by cloning
+    if (modal) {
+      const newModal = modal.cloneNode(true);
+      modal.parentNode.replaceChild(newModal, modal);
+      
+      const newForm = newModal.querySelector(`#${this.id}-form`);
+      
+      // Rebind close events
+      newModal.querySelectorAll('[data-close="1"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          this.close();
+        });
       });
-    });
 
-    const newForm = newModal.querySelector(`#${this.id}-form`);
-    newForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const formData = this.getFormData();
-      try {
-        await this.onSubmit(formData, this.currentData?.id);
-        this.close();
-      } catch (error) {
-        this.showError(error.message || 'Error al guardar');
+      // Rebind form submit
+      if (newForm) {
+        newForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = this.getFormData();
+          try {
+            await this.onSubmit(formData, this.currentData?.id);
+            this.close();
+          } catch (error) {
+            this.showError(error.message || 'Error al guardar');
+          }
+        });
       }
-    });
+    }
   }
 
   getFormData() {
@@ -158,7 +194,7 @@ export class SmartModalForm {
       } else if (field.type === 'number') {
         data[field.name] = element.value ? parseFloat(element.value) : null;
       } else if (field.type === 'date' && element.value) {
-        // Format date for PocketBase (YYYY-MM-DD HH:mm:ss.sssZ)
+        // Format date for PocketBase
         const date = new Date(element.value);
         data[field.name] = date.toISOString();
       } else {
@@ -170,36 +206,43 @@ export class SmartModalForm {
   }
 
   async populateForm(data) {
-    this.fields.forEach(field => {
-      const element = document.getElementById(this.getFieldId(field));
-      if (!element) return;
-      
-      const value = data[field.name];
-      
-      // Clear field first
-      if (field.componentType === 'checkbox') {
-        element.checked = false;
-      } else {
-        element.value = '';
-      }
-      
-      // Set value if exists
-      if (value !== undefined && value !== null) {
+    // First update relation options to ensure they're loaded
+    await this.updateRelationOptions();
+    
+    // Then set values for all fields
+    setTimeout(() => {
+      this.fields.forEach(field => {
+        const element = document.getElementById(this.getFieldId(field));
+        if (!element) return;
+        
+        const value = data[field.name];
+        
+        // Clear field first
         if (field.componentType === 'checkbox') {
-          element.checked = Boolean(value);
-        } else if (field.type === 'date') {
-          // Convert ISO date to YYYY-MM-DD for input[type="date"]
-          const date = new Date(value);
-          if (!isNaN(date.getTime())) {
-            element.value = date.toISOString().split('T')[0];
-          }
-        } else if (field.type === 'select' || field.componentType === 'relation') {
-          element.value = value;
+          element.checked = false;
         } else {
-          element.value = value;
+          element.value = '';
         }
-      }
-    });
+        
+        // Set value if exists
+        if (value !== undefined && value !== null) {
+          if (field.componentType === 'checkbox') {
+            element.checked = Boolean(value);
+          } else if (field.type === 'date') {
+            // Convert ISO date to YYYY-MM-DD for input[type="date"]
+            const date = new Date(value);
+            if (!isNaN(date.getTime())) {
+              element.value = date.toISOString().split('T')[0];
+            }
+          } else if (field.type === 'select' || field.componentType === 'relation' || field.type === 'relation') {
+            // For select and relation fields, set the value
+            element.value = value;
+          } else {
+            element.value = value;
+          }
+        }
+      });
+    }, 100); // Small delay to ensure options are loaded
   }
 
   show() {
@@ -214,7 +257,6 @@ export class SmartModalForm {
     if (modal) {
       modal.style.display = 'none';
     }
-    // Clear form when closing
     this.clearForm();
     this.currentData = null;
   }
@@ -226,7 +268,7 @@ export class SmartModalForm {
       
       if (field.componentType === 'checkbox') {
         element.checked = false;
-      } else if (field.type === 'select' || field.componentType === 'relation') {
+      } else if (field.type === 'select' || field.componentType === 'relation' || field.type === 'relation') {
         element.value = '';
       } else {
         element.value = '';
