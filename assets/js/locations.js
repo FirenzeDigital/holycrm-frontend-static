@@ -18,9 +18,6 @@ export async function initLocationsView(church) {
   dataService = new DataService('locations');
   
 
-  // Initialize relation services
-  
-
   // Check permissions
   const section = document.querySelector('section[data-view="locations"]');
   if (!can("read", "locations")) {
@@ -53,12 +50,12 @@ async function initComponents() {
   },
   {
     "key": "city",
-    "label": "City",
+    "label": "Ciudad",
     "format": null
   },
   {
     "key": "pastor_name",
-    "label": "Pastor Name",
+    "label": "Nombre del Pastor",
     "format": null
   },
   {
@@ -71,7 +68,8 @@ async function initComponents() {
     canDelete: can("delete", "locations"),
     onEdit: openRecordModal,
     onDelete: deleteRecord,
-    searchInput: '#locations-search'
+    searchInput: '#locations-search',
+    expand: ''
   });
 
   // Configure and create modal form
@@ -87,19 +85,19 @@ async function initComponents() {
   },
   {
     "name": "city",
-    "label": "City",
+    "label": "Ciudad",
     "type": "text",
     "required": false
   },
   {
     "name": "pastor_name",
-    "label": "Pastor Name",
+    "label": "Nombre del Pastor",
     "type": "text",
     "required": false
   },
   {
     "name": "inauguration_date",
-    "label": "Inauguration Date",
+    "label": "Fecha de Inauguración",
     "type": "date",
     "required": false
   },
@@ -127,7 +125,7 @@ async function initComponents() {
   }
 ],
     onSubmit: saveRecord,
-    onLoadRelations: loadRelationOptions
+    onLoadRelations: () => []
   });
 
   // Wire up the "New" button
@@ -136,10 +134,14 @@ async function initComponents() {
 
 
 
-
 async function refreshData() {
   console.log('Refreshing data for church:', currentChurchId);
-  const data = await dataService.getList(currentChurchId);
+  
+  // Build expand parameter for relations
+  let expand = '';
+  
+  
+  const data = await dataService.getList(currentChurchId, expand);
   console.log('Got data:', data.length, 'records');
   table.render(data);
 }
