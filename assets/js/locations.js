@@ -157,20 +157,28 @@ async function openRecordModal(id = null) {
 }
 
 async function saveRecord(data, id = null) {
-  console.log('Saving record:', data);
+  console.log('Saving record. ID:', id, 'Data:', data);
   
   const payload = {
     ...data,
     church: currentChurchId
   };
 
-  if (id) {
-    await dataService.update(id, payload);
-  } else {
-    await dataService.create(payload);
+  try {
+    if (id) {
+      console.log('Updating existing record:', id);
+      await dataService.update(id, payload);
+    } else {
+      console.log('Creating new record');
+      await dataService.create(payload);
+    }
+    
+    await refreshData();
+  } catch (error) {
+    console.error('Error saving record:', error);
+    alert('Error al guardar: ' + error.message);
+    throw error;
   }
-  
-  await refreshData();
 }
 
 async function deleteRecord(id) {
