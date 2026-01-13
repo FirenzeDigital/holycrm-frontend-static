@@ -13,6 +13,8 @@ export class EnhancedCrudTable {
     this.searchInput = config.searchInput;
     this.expand = config.expand || '';
     this.originalData = [];
+    this.filteredData = [];
+    this.currentFilter = '';
     
     if (this.searchInput) {
       this.setupSearch();
@@ -25,33 +27,50 @@ export class EnhancedCrudTable {
       : this.searchInput;
     
     if (input) {
+      // Clear any existing listeners
+      const newInput = input.cloneNode(true);
+      input.parentNode.replaceChild(newInput, input);
+      
       let timeout;
-      input.addEventListener('input', (e) => {
+      newInput.addEventListener('input', (e) => {
         clearTimeout(timeout);
         timeout = setTimeout(() => {
           this.filterData(e.target.value);
         }, 300);
       });
+      
+      // Add clear button functionality
+      newInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          newInput.value = '';
+          this.filterData('');
+        }
+      });
     }
   }
   
   filterData(searchTerm) {
+    this.currentFilter = searchTerm;
+    
     if (!searchTerm || searchTerm.trim() === '') {
-      this.render(this.originalData);
+      // Reset to original data
+      this.filteredData = [...this.originalData];
+      this.renderTable();
       return;
     }
     
     const term = searchTerm.toLowerCase().trim();
-    const filtered = this.originalData.filter(item => {
+    this.filteredData = this.originalData.filter(item => {
+      // Search across all displayed columns
       return this.columns.some(col => {
         const value = this.getCellValue(item, col.key);
         return String(value).toLowerCase().includes(term);
       });
     });
     
-    this.render(filtered);
+    this.renderTable();
   }
-  
+
   getCellValue(item, key) {
     if (key.includes('.')) {
       // Handle nested properties (expand.relation.field)
@@ -81,17 +100,26 @@ export class EnhancedCrudTable {
   }
 
   render(data) {
-    this.currentData = data;
-    this.originalData = [...data]; // Keep a copy for filtering
+    this.originalData = [...data];
+    this.filteredData = [...data];
     
+    // If there's an active filter, reapply it
+    if (this.currentFilter) {
+      this.filterData(this.currentFilter);
+    } else {
+      this.renderTable();
+    }
+  }
+
+  renderTable() {
     const tableBody = this.getElement(this.container);
     if (!tableBody) return;
 
     this.renderHeaders();
 
-    tableBody.innerHTML = data.length ? 
-      data.map(item => this.renderRow(item)).join('') :
-      `<tr><td colspan="${this.columns.length + 1}">Sin registros</td></tr>`;
+    tableBody.innerHTML = this.filteredData.length ? 
+      this.filteredData.map(item => this.renderRow(item)).join('') :
+      `<tr><td colspan="${this.columns.length + 1}">No hay registros que coincidan con la búsqueda</td></tr>`;
 
     this.bindRowEvents(tableBody);
   }
@@ -131,10 +159,10 @@ export class EnhancedCrudTable {
 
     const actions = [];
     if (this.canEdit && this.onEdit) {
-      actions.push(`<button data-action="edit" data-id="${item.id}">Editar</button>`);
+      actions.push(`<button class="edit-btn" data-action="edit" data-id="${item.id}">Editar</button>`);
     }
     if (this.canDelete && this.onDelete) {
-      actions.push(`<button class="danger-btn" data-action="delete" data-id="${item.id}">Eliminar</button>`);
+      actions.push(`<button class="danger-btn delete-btn" data-action="delete" data-id="${item.id}">Eliminar</button>`);
     }
 
     return `<tr>${cells.join('')}<td class="row-actions">${actions.join('')}</td></tr>`;
@@ -146,7 +174,7 @@ export class EnhancedCrudTable {
     });
     container.querySelectorAll('[data-action="delete"]').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (confirm('¿Eliminar registro?')) this.onDelete(btn.dataset.id);
+        if (confirm('¿Está seguro de eliminar este registro?')) this.onDelete(btn.dataset.id);
       });
     });
   }

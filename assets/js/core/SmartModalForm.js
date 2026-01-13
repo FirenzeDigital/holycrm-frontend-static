@@ -6,7 +6,7 @@ export class SmartModalForm {
     this.fields = config.fields;
     this.onSubmit = config.onSubmit;
     this.onLoadRelations = config.onLoadRelations || (() => []);
-    this.relationCache = new Map();
+    this.currentData = null;
   }
 
   async open(data = {}) {
@@ -18,13 +18,15 @@ export class SmartModalForm {
 
   async renderModal() {
     if (document.getElementById(this.id)) {
-      return; // Modal already exists
+      // Modal exists, just clear it
+      await this.updateFormInputs();
+      return;
     }
 
     const fieldHTML = await Promise.all(
       this.fields.map(async field => `
         <div class="field">
-          <label for="${field.name}">${field.label}${field.required ? ' *' : ''}</label>
+          <label for="${this.getFieldId(field)}">${field.label}${field.required ? ' *' : ''}</label>
           ${await this.renderFieldInput(field)}
         </div>
       `)
@@ -42,8 +44,8 @@ export class SmartModalForm {
             ${fieldHTML}
             <div id="${this.id}-error" class="error"></div>
             <div class="modal-footer">
-              <button type="button" data-close="1">Cancelar</button>
-              <button type="submit">Guardar</button>
+              <button type="button" class="cancel-btn" data-close="1">Cancelar</button>
+              <button type="submit" class="submit-btn">Guardar</button>
             </div>
           </form>
         </div>
@@ -52,10 +54,15 @@ export class SmartModalForm {
 
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     this.bindEvents();
+    await this.updateFormInputs();
+  }
+
+  getFieldId(field) {
+    return `${this.id}-${field.name}`;
   }
 
   async renderFieldInput(field) {
-    const fieldId = `${this.id}-${field.name}`;
+    const fieldId = this.getFieldId(field);
     
     switch (field.componentType || field.type) {
       case 'select':
@@ -69,13 +76,9 @@ export class SmartModalForm {
         </select>`;
       
       case 'relation':
-        const relationOptions = await this.onLoadRelations(field);
-        const relationHTML = relationOptions.map(opt => 
-          `<option value="${opt.id}">${opt.label}</option>`
-        ).join('');
+        // We'll update options after modal renders
         return `<select id="${fieldId}" name="${field.name}" ${field.required ? 'required' : ''}>
-          <option value="">-- Seleccionar --</option>
-          ${relationHTML}
+          <option value="">Cargando opciones...</option>
         </select>`;
       
       case 'checkbox':
@@ -98,15 +101,40 @@ export class SmartModalForm {
     }
   }
 
+  async updateFormInputs() {
+    // Update all relation select elements
+    for (const field of this.fields) {
+      if (field.componentType === 'relation' || field.type === 'relation') {
+        const element = document.getElementById(this.getFieldId(field));
+        if (element) {
+          const options = await this.onLoadRelations(field);
+          const optionsHTML = options.map(opt => 
+            `<option value="${opt.id}">${opt.label}</option>`
+          ).join('');
+          element.innerHTML = `<option value="">-- Seleccionar --</option>${optionsHTML}`;
+        }
+      }
+    }
+  }
+
   bindEvents() {
     const modal = document.getElementById(this.id);
     const form = document.getElementById(`${this.id}-form`);
 
-    modal.querySelectorAll('[data-close="1"]').forEach(btn => {
-      btn.addEventListener('click', () => this.close());
+    // Clear any existing event listeners
+    const newModal = modal.cloneNode(true);
+    modal.parentNode.replaceChild(newModal, modal);
+
+    // Rebind events
+    newModal.querySelectorAll('[data-close="1"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.close();
+      });
     });
 
-    form.addEventListener('submit', async (e) => {
+    const newForm = newModal.querySelector(`#${this.id}-form`);
+    newForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const formData = this.getFormData();
       try {
@@ -120,21 +148,21 @@ export class SmartModalForm {
 
   getFormData() {
     const data = {};
-    const form = document.getElementById(`${this.id}-form`);
-    if (!form) return data;
-    
-    const formData = new FormData(form);
     
     this.fields.forEach(field => {
-      const element = document.getElementById(`${this.id}-${field.name}`);
-      if (element) {
-        if (field.componentType === 'checkbox') {
-          data[field.name] = element.checked;
-        } else if (field.type === 'number') {
-          data[field.name] = element.value ? parseFloat(element.value) : null;
-        } else {
-          data[field.name] = formData.get(field.name);
-        }
+      const element = document.getElementById(this.getFieldId(field));
+      if (!element) return;
+      
+      if (field.componentType === 'checkbox') {
+        data[field.name] = element.checked;
+      } else if (field.type === 'number') {
+        data[field.name] = element.value ? parseFloat(element.value) : null;
+      } else if (field.type === 'date' && element.value) {
+        // Format date for PocketBase (YYYY-MM-DD HH:mm:ss.sssZ)
+        const date = new Date(element.value);
+        data[field.name] = date.toISOString();
+      } else {
+        data[field.name] = element.value || null;
       }
     });
     
@@ -143,15 +171,32 @@ export class SmartModalForm {
 
   async populateForm(data) {
     this.fields.forEach(field => {
-      const element = document.getElementById(`${this.id}-${field.name}`);
-      if (element && data[field.name] !== undefined && data[field.name] !== null) {
+      const element = document.getElementById(this.getFieldId(field));
+      if (!element) return;
+      
+      const value = data[field.name];
+      
+      // Clear field first
+      if (field.componentType === 'checkbox') {
+        element.checked = false;
+      } else {
+        element.value = '';
+      }
+      
+      // Set value if exists
+      if (value !== undefined && value !== null) {
         if (field.componentType === 'checkbox') {
-          element.checked = Boolean(data[field.name]);
+          element.checked = Boolean(value);
+        } else if (field.type === 'date') {
+          // Convert ISO date to YYYY-MM-DD for input[type="date"]
+          const date = new Date(value);
+          if (!isNaN(date.getTime())) {
+            element.value = date.toISOString().split('T')[0];
+          }
         } else if (field.type === 'select' || field.componentType === 'relation') {
-          // Set select value
-          element.value = data[field.name];
+          element.value = value;
         } else {
-          element.value = data[field.name];
+          element.value = value;
         }
       }
     });
@@ -169,7 +214,24 @@ export class SmartModalForm {
     if (modal) {
       modal.style.display = 'none';
     }
+    // Clear form when closing
+    this.clearForm();
     this.currentData = null;
+  }
+
+  clearForm() {
+    this.fields.forEach(field => {
+      const element = document.getElementById(this.getFieldId(field));
+      if (!element) return;
+      
+      if (field.componentType === 'checkbox') {
+        element.checked = false;
+      } else if (field.type === 'select' || field.componentType === 'relation') {
+        element.value = '';
+      } else {
+        element.value = '';
+      }
+    });
   }
 
   showError(message) {
