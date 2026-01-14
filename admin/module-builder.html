@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Enhanced Module Builder - HolyCRM</title>
-  <link rel="stylesheet" href="../assets/css/app.css">
+  <link rel="stylesheet" href="../assets/css/styles.css">
   <style>
     .builder-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
     .builder-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
@@ -53,103 +53,196 @@
     .module-info { background: #e8f5e8; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
     .error-message { color: #dc3545; background: #f8d7da; padding: 10px; border-radius: 4px; margin: 10px 0; }
     .success-message { color: #28a745; background: #d4edda; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    .generator-tabs { display: flex; gap: 10px; margin: 20px 0; }
+    .generator-tab { padding: 10px 20px; background: #f0f0f0; border: none; border-radius: 4px; cursor: pointer; }
+    .generator-tab.active { background: #007bff; color: white; }
+    .generator-panel { display: none; }
+    .generator-panel.active { display: block; }
   </style>
 </head>
 <body>
   <div class="builder-container">
     <h1>🚀 Enhanced Module Builder</h1>
-    <p>Import any PocketBase collection JSON to generate a fully-functional CRUD module with automatic relation handling.</p>
+    <p>Choose your generator method:</p>
     
-    <div class="module-info">
-      <h3>📦 How it works:</h3>
-      <ul>
-        <li>1. Paste your PocketBase collection JSON below</li>
-        <li>2. Configure which fields to show in table and form</li>
-        <li>3. Relation fields will automatically load options from their collections</li>
-        <li>4. Generate and download a production-ready JavaScript module</li>
-      </ul>
+    <div class="generator-tabs">
+      <button class="generator-tab active" data-tab="pb-generator">PocketBase JSON Generator</button>
+      <button class="generator-tab" data-tab="openapi-generator">OpenAPI Generator</button>
     </div>
     
-    <div class="drop-zone" id="json-drop-zone">
-      <h3>📁 Import Collection Schema</h3>
-      <p>Drag & drop a PocketBase collection JSON file here</p>
-      <p>or <button id="paste-json" class="btn-primary">Paste JSON directly</button></p>
-      <p><small>Get JSON from PocketBase: Collections → Click collection → Click "Copy raw JSON" button</small></p>
-    </div>
-    
-    <div id="parsing-error" class="error-message" style="display:none"></div>
-    <div id="parsing-success" class="success-message" style="display:none"></div>
-    
-    <div class="builder-grid">
-      <!-- Left: Schema Analysis -->
-      <div class="schema-panel">
-        <h3>📋 Collection Schema Analysis</h3>
-        <div id="schema-info"></div>
-        <h4>Available Fields:</h4>
-        <div class="field-list" id="field-list">
-          <div class="muted">No schema loaded yet...</div>
+    <!-- PocketBase JSON Generator Panel -->
+    <div id="pb-generator" class="generator-panel active">
+      <div class="module-info">
+        <h3>📦 PocketBase JSON Generator:</h3>
+        <ul>
+          <li>1. Paste PocketBase collection JSON below</li>
+          <li>2. Configure fields for table and form</li>
+          <li>3. Generate module</li>
+        </ul>
+      </div>
+      
+      <div class="drop-zone" id="json-drop-zone">
+        <h3>📁 Import PocketBase Collection</h3>
+        <p>Drag & drop a PocketBase collection JSON file here</p>
+        <p>or <button id="paste-json" class="btn-primary">Paste JSON directly</button></p>
+        <p><small>Get JSON from PocketBase: Collections → Click collection → "Copy raw JSON" button</small></p>
+      </div>
+      
+      <div id="pb-parsing-error" class="error-message" style="display:none"></div>
+      <div id="pb-parsing-success" class="success-message" style="display:none"></div>
+      
+      <div class="builder-grid">
+        <div class="schema-panel">
+          <h3>📋 Collection Schema Analysis</h3>
+          <div id="pb-schema-info"></div>
+          <h4>Available Fields:</h4>
+          <div class="field-list" id="pb-field-list">
+            <div class="muted">No schema loaded yet...</div>
+          </div>
+        </div>
+        
+        <div class="config-panel">
+          <h3>⚙️ Module Configuration</h3>
+          
+          <div class="config-section">
+            <h4>Basic Info</h4>
+            <div class="field">
+              <label>Module Name (technical)</label>
+              <input type="text" id="pb-module-name" placeholder="e.g., members">
+              <small>Used for function names and permissions</small>
+            </div>
+            
+            <div class="field">
+              <label>Display Label</label>
+              <input type="text" id="pb-module-label" placeholder="e.g., Miembros">
+            </div>
+            
+            <div class="field">
+              <label>Icon</label>
+              <select id="pb-module-icon">
+                <option value="👥">👥 People</option>
+                <option value="💰">💰 Money</option>
+                <option value="📅">📅 Calendar</option>
+                <option value="📍">📍 Location</option>
+                <option value="👪">👪 Group</option>
+                <option value="📊">📊 Chart</option>
+                <option value="🎭">🎭 Ministry</option>
+                <option value="🛠️">🛠️ Service</option>
+                <option value="📝">📝 Notes</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="config-section">
+            <h4>Table Columns</h4>
+            <p><small>Choose which fields to show in the table</small></p>
+            <div id="pb-table-columns-config"></div>
+          </div>
+          
+          <div class="config-section">
+            <h4>Form Fields</h4>
+            <p><small>Choose which fields to include in the create/edit form</small></p>
+            <div id="pb-form-fields-config"></div>
+          </div>
         </div>
       </div>
       
-      <!-- Right: Configuration -->
-      <div class="config-panel">
-        <h3>⚙️ Module Configuration</h3>
-        
-        <div class="config-section">
-          <h4>Basic Info</h4>
-          <div class="field">
-            <label>Module Name (technical)</label>
-            <input type="text" id="module-name" placeholder="e.g., members">
-            <small>Used for function names and permissions</small>
-          </div>
-          
-          <div class="field">
-            <label>Display Label</label>
-            <input type="text" id="module-label" placeholder="e.g., Miembros">
-          </div>
-          
-          <div class="field">
-            <label>Icon</label>
-            <select id="module-icon">
-              <option value="👥">👥 People</option>
-              <option value="💰">💰 Money</option>
-              <option value="📅">📅 Calendar</option>
-              <option value="📍">📍 Location</option>
-              <option value="👪">👪 Group</option>
-              <option value="📊">📊 Chart</option>
-              <option value="🎭">🎭 Ministry</option>
-              <option value="🛠️">🛠️ Service</option>
-              <option value="📝">📝 Notes</option>
-            </select>
-          </div>
-        </div>
-        
-        <div class="config-section">
-          <h4>Table Columns</h4>
-          <p><small>Choose which fields to show in the table (relation fields will show expanded data)</small></p>
-          <div id="table-columns-config"></div>
-        </div>
-        
-        <div class="config-section">
-          <h4>Form Fields</h4>
-          <p><small>Choose which fields to include in the create/edit form</small></p>
-          <div id="form-fields-config"></div>
-        </div>
-      </div>
-      
-      <!-- Preview & Code -->
       <div class="preview-panel">
         <h3>👁️ Preview & Generated Code</h3>
         <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-          <button id="generate-code" class="btn-primary">Generate Module</button>
-          <button id="download-module" class="btn-secondary" disabled>Download JS File</button>
-          <button id="reset-builder" class="btn-secondary">Reset Builder</button>
+          <button id="pb-generate-code" class="btn-primary">Generate Module</button>
+          <button id="pb-download-module" class="btn-secondary" disabled>Download JS File</button>
         </div>
         
-        <div id="generator-status"></div>
+        <div id="pb-generator-status"></div>
         
         <div class="code-output">
-          <pre id="generated-code">// Generated code will appear here</pre>
+          <pre id="pb-generated-code">// Generated code will appear here</pre>
+        </div>
+      </div>
+    </div>
+    
+    <!-- OpenAPI Generator Panel -->
+    <div id="openapi-generator" class="generator-panel">
+      <div class="module-info">
+        <h3>📦 OpenAPI Generator:</h3>
+        <ul>
+          <li>1. Paste your full OpenAPI spec JSON</li>
+          <li>2. Select collection and configure</li>
+          <li>3. Relation fields are automatically detected from OpenAPI</li>
+          <li>4. Generate module with proper relation handling</li>
+        </ul>
+      </div>
+      
+      <div class="field">
+        <label>OpenAPI Spec JSON</label>
+        <textarea id="openapi-spec" rows="15" placeholder="Paste your full OpenAPI spec here..."></textarea>
+        <small>Use the full OpenAPI JSON, not just a collection</small>
+      </div>
+      
+      <button id="load-openapi" class="btn-primary">Parse OpenAPI Spec</button>
+      
+      <div id="openapi-parsing-error" class="error-message" style="display:none"></div>
+      <div id="openapi-parsing-success" class="success-message" style="display:none"></div>
+      
+      <div class="builder-grid" id="openapi-builder" style="display: none;">
+        <div class="schema-panel">
+          <h3>📋 Collection Selection</h3>
+          <div class="field">
+            <label>Select Collection</label>
+            <select id="openapi-collection">
+              <option value="">-- Select a collection --</option>
+            </select>
+          </div>
+          
+          <div id="openapi-schema-info"></div>
+          
+          <h4>Available Fields:</h4>
+          <div class="field-list" id="openapi-field-list">
+            <div class="muted">Select a collection first...</div>
+          </div>
+        </div>
+        
+        <div class="config-panel">
+          <h3>⚙️ Module Configuration</h3>
+          
+          <div class="config-section">
+            <h4>Basic Info</h4>
+            <div class="field">
+              <label>Module Name (technical)</label>
+              <input type="text" id="openapi-module-name" placeholder="e.g., members">
+              <small>Used for function names and permissions</small>
+            </div>
+            
+            <div class="field">
+              <label>Display Label</label>
+              <input type="text" id="openapi-module-label" placeholder="e.g., Miembros">
+            </div>
+            
+            <div class="field">
+              <label>Icon</label>
+              <input type="text" id="openapi-icon" value="📋" placeholder="e.g., 👥, 📍">
+            </div>
+          </div>
+          
+          <div class="config-section">
+            <h4>Detected Relations</h4>
+            <div id="openapi-relations-info"></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="preview-panel" id="openapi-preview" style="display: none;">
+        <h3>👁️ Preview & Generated Code</h3>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+          <button id="openapi-generate-code" class="btn-primary">Generate Module</button>
+          <button id="openapi-download-module" class="btn-secondary" disabled>Download JS File</button>
+        </div>
+        
+        <div id="openapi-generator-status"></div>
+        
+        <div class="code-output">
+          <pre id="openapi-generated-code">// Generated code will appear here</pre>
         </div>
       </div>
     </div>
@@ -157,134 +250,137 @@
 
   <script type="module">
     import { EnhancedModuleGenerator } from '../assets/js/core/EnhancedModuleGenerator.js';
+    import { OpenAPIModuleGenerator } from '../assets/js/core/OpenAPIModuleGenerator.js';
     
-    const generator = new EnhancedModuleGenerator();
-    let currentSchema = null;
-    let moduleConfig = {
-      tableColumns: [],
-      formFields: []
-    };
-    
-    // DOM Elements
-    const dropZone = document.getElementById('json-drop-zone');
-    const pasteBtn = document.getElementById('paste-json');
-    const generateBtn = document.getElementById('generate-code');
-    const downloadBtn = document.getElementById('download-module');
-    const resetBtn = document.getElementById('reset-builder');
-    const schemaInfo = document.getElementById('schema-info');
-    const fieldList = document.getElementById('field-list');
-    const tableConfig = document.getElementById('table-columns-config');
-    const formConfig = document.getElementById('form-fields-config');
-    const generatedCode = document.getElementById('generated-code');
-    const generatorStatus = document.getElementById('generator-status');
-    const parsingError = document.getElementById('parsing-error');
-    const parsingSuccess = document.getElementById('parsing-success');
-    
-    // JSON Drop Zone
-    dropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropZone.classList.add('drag-over');
+    // Tab switching
+    document.querySelectorAll('.generator-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        // Update tabs
+        document.querySelectorAll('.generator-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        
+        // Update panels
+        document.querySelectorAll('.generator-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById(tab.dataset.tab).classList.add('active');
+      });
     });
     
-    dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('drag-over');
+    // ========== PocketBase Generator ==========
+    const pbGenerator = new EnhancedModuleGenerator();
+    let pbCurrentSchema = null;
+    let pbGeneratedCode = null;
+    
+    // DOM Elements for PB
+    const pbDropZone = document.getElementById('json-drop-zone');
+    const pbPasteBtn = document.getElementById('paste-json');
+    const pbGenerateBtn = document.getElementById('pb-generate-code');
+    const pbDownloadBtn = document.getElementById('pb-download-module');
+    const pbSchemaInfo = document.getElementById('pb-schema-info');
+    const pbFieldList = document.getElementById('pb-field-list');
+    const pbTableConfig = document.getElementById('pb-table-columns-config');
+    const pbFormConfig = document.getElementById('pb-form-fields-config');
+    const pbGeneratedCodeEl = document.getElementById('pb-generated-code');
+    const pbGeneratorStatus = document.getElementById('pb-generator-status');
+    const pbParsingError = document.getElementById('pb-parsing-error');
+    const pbParsingSuccess = document.getElementById('pb-parsing-success');
+    
+    // PB JSON Drop Zone
+    pbDropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      pbDropZone.classList.add('drag-over');
     });
     
-    dropZone.addEventListener('drop', async (e) => {
+    pbDropZone.addEventListener('dragleave', () => {
+      pbDropZone.classList.remove('drag-over');
+    });
+    
+    pbDropZone.addEventListener('drop', async (e) => {
       e.preventDefault();
-      dropZone.classList.remove('drag-over');
+      pbDropZone.classList.remove('drag-over');
       
       const file = e.dataTransfer.files[0];
       if (file && file.type === 'application/json') {
         try {
           const text = await file.text();
-          loadSchema(JSON.parse(text));
+          pbLoadSchema(JSON.parse(text));
         } catch (error) {
-          showError('Error reading file: ' + error.message);
+          pbShowError('Error reading file: ' + error.message);
         }
       } else {
-        showError('Please drop a JSON file');
+        pbShowError('Please drop a JSON file');
       }
     });
     
     // Paste JSON button
-    pasteBtn.addEventListener('click', async () => {
+    pbPasteBtn.addEventListener('click', async () => {
       try {
         const json = prompt('Paste PocketBase collection JSON:');
         if (json) {
           const parsed = JSON.parse(json);
-          loadSchema(parsed);
+          pbLoadSchema(parsed);
         }
       } catch (error) {
-        showError('Invalid JSON: ' + error.message);
+        pbShowError('Invalid JSON: ' + error.message);
       }
     });
     
-    // Reset button
-    resetBtn.addEventListener('click', () => {
-      currentSchema = null;
-      moduleConfig = { tableColumns: [], formFields: [] };
-      resetUI();
-      showSuccess('Builder reset. Ready for new collection.');
-    });
-    
-    function loadSchema(pbJson) {
+    function pbLoadSchema(pbJson) {
       try {
-        parsingError.style.display = 'none';
-        parsingSuccess.style.display = 'none';
+        pbParsingError.style.display = 'none';
+        pbParsingSuccess.style.display = 'none';
         
-        console.log('Parsing schema:', pbJson.name);
-        currentSchema = generator.parseCollectionSchema(pbJson);
+        console.log('Parsing PB schema:', pbJson.name);
+        pbCurrentSchema = pbGenerator.parseCollectionSchema(pbJson);
         
         // Auto-populate module name and label
-        document.getElementById('module-name').value = currentSchema.collectionName;
-        document.getElementById('module-label').value = generator.formatLabel(currentSchema.collectionName);
+        document.getElementById('pb-module-name').value = pbCurrentSchema.collectionName;
+        document.getElementById('pb-module-label').value = pbGenerator.formatLabel(pbCurrentSchema.collectionName);
         
-        renderSchemaInfo();
-        renderConfigUI();
+        pbRenderSchemaInfo();
+        pbRenderConfigUI();
         
-        parsingSuccess.textContent = `✅ Successfully parsed "${currentSchema.collectionName}" collection with ${currentSchema.fields.length} fields`;
-        parsingSuccess.style.display = 'block';
+        pbParsingSuccess.textContent = `✅ Successfully parsed "${pbCurrentSchema.collectionName}" collection with ${pbCurrentSchema.fields.length} fields`;
+        pbParsingSuccess.style.display = 'block';
         
-        showStatus(`Ready to generate "${currentSchema.collectionName}" module`, 'info');
+        pbShowStatus(`Ready to generate "${pbCurrentSchema.collectionName}" module`, 'info');
         
       } catch (error) {
         console.error('Error parsing schema:', error);
-        showError('Failed to parse schema: ' + error.message);
-        currentSchema = null;
+        pbShowError('Failed to parse schema: ' + error.message);
+        pbCurrentSchema = null;
       }
     }
     
-    function renderSchemaInfo() {
-      if (!currentSchema) return;
+    function pbRenderSchemaInfo() {
+      if (!pbCurrentSchema) return;
       
-      const relationCount = currentSchema.fields.filter(f => f.type === 'relation').length;
-      const selectCount = currentSchema.fields.filter(f => f.type === 'select').length;
+      const relationCount = pbCurrentSchema.fields.filter(f => f.type === 'relation').length;
+      const selectCount = pbCurrentSchema.fields.filter(f => f.type === 'select').length;
       
-      schemaInfo.innerHTML = `
+      pbSchemaInfo.innerHTML = `
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
           <div>
             <strong>Collection:</strong><br>
-            <span style="font-size: 18px; color: #1976d2;">${currentSchema.collectionName}</span>
+            <span style="font-size: 18px; color: #1976d2;">${pbCurrentSchema.collectionName}</span>
           </div>
           <div>
             <strong>Type:</strong><br>
-            ${currentSchema.isChurchSpecific ? '🏛️ Church-specific' : '🌍 Global'}
+            ${pbCurrentSchema.isChurchSpecific ? '🏛️ Church-specific' : '🌍 Global'}
           </div>
           <div>
             <strong>Fields:</strong><br>
-            ${currentSchema.fields.length} total<br>
+            ${pbCurrentSchema.fields.length} total<br>
             ${relationCount} relations, ${selectCount} selects
           </div>
           <div>
             <strong>Church Field:</strong><br>
-            ${currentSchema.hasChurchField ? '✅ Auto-handled' : '❌ Not present'}
+            ${pbCurrentSchema.hasChurchField ? '✅ Auto-handled' : '❌ Not present'}
           </div>
         </div>
       `;
       
       // Render field list
-      fieldList.innerHTML = currentSchema.fields.map(field => {
+      pbFieldList.innerHTML = pbCurrentSchema.fields.map(field => {
         const badgeClass = field.type === 'relation' ? 'relation' : field.type === 'select' ? 'select' : '';
         const badgeText = field.type === 'relation' ? 'Relation → ' + (field.relationCollection || 'unknown') : 
                          field.type === 'select' ? 'Select' : field.type;
@@ -301,12 +397,12 @@
       }).join('');
     }
     
-    function renderConfigUI() {
-      if (!currentSchema) return;
+    function pbRenderConfigUI() {
+      if (!pbCurrentSchema) return;
       
       // Generate table columns config
-      tableConfig.innerHTML = currentSchema.fields
-        .filter(field => field.type !== 'relation') // Don't show relation fields in table by default
+      pbTableConfig.innerHTML = pbCurrentSchema.fields
+        .filter(field => field.type !== 'relation')
         .map(field => `
           <div class="field-checkbox">
             <label>
@@ -321,7 +417,7 @@
         `).join('');
       
       // Generate form fields config
-      formConfig.innerHTML = currentSchema.fields.map(field => {
+      pbFormConfig.innerHTML = pbCurrentSchema.fields.map(field => {
         const isRelation = field.type === 'relation';
         const isSelect = field.type === 'select';
         const specialNote = isRelation ? '<br><small style="color:#2e7d32;">→ Will load options from ' + (field.relationCollection || 'related collection') + '</small>' : 
@@ -343,24 +439,23 @@
       }).join('');
     }
     
-    // Generate button
-    generateBtn.addEventListener('click', () => {
-      if (!currentSchema) {
-        showError('Please load a schema first');
+    // PB Generate button
+    pbGenerateBtn.addEventListener('click', () => {
+      if (!pbCurrentSchema) {
+        pbShowError('Please load a schema first');
         return;
       }
       
       // Collect table columns
-      const tableColumns = Array.from(document.querySelectorAll('#table-columns-config input:checked'))
+      const tableColumns = Array.from(document.querySelectorAll('#pb-table-columns-config input:checked'))
         .map(input => {
           const fieldName = input.dataset.field;
-          const fieldType = input.dataset.type;
-          const field = currentSchema.fields.find(f => f.name === fieldName);
+          const field = pbCurrentSchema.fields.find(f => f.name === fieldName);
           
           let format = null;
-          if (fieldType === 'date') {
+          if (field.type === 'date') {
             format = "val => val ? val.split('T')[0] : ''";
-          } else if (fieldType === 'bool') {
+          } else if (field.type === 'bool') {
             format = "val => val ? 'Sí' : 'No'";
           }
           
@@ -372,11 +467,10 @@
         });
       
       // Collect form fields
-      const formFields = Array.from(document.querySelectorAll('#form-fields-config input:checked'))
+      const formFields = Array.from(document.querySelectorAll('#pb-form-fields-config input:checked'))
         .map(input => {
           const fieldName = input.dataset.field;
-          const fieldType = input.dataset.type;
-          const field = currentSchema.fields.find(f => f.name === fieldName);
+          const field = pbCurrentSchema.fields.find(f => f.name === fieldName);
           
           const fieldConfig = {
             name: field.name,
@@ -389,7 +483,7 @@
           if (field.type === 'select' && field.options && field.options.length > 0) {
             fieldConfig.options = field.options.map(opt => ({
               value: opt,
-              label: generator.formatLabel(opt)
+              label: pbGenerator.formatLabel(opt)
             }));
           }
           
@@ -411,205 +505,317 @@
       
       // Generate module
       const config = {
-        schema: currentSchema,
+        schema: pbCurrentSchema,
         tableColumns,
         formFields,
-        moduleName: document.getElementById('module-name').value,
-        moduleLabel: document.getElementById('module-label').value,
-        icon: document.getElementById('module-icon').value
+        moduleName: document.getElementById('pb-module-name').value,
+        moduleLabel: document.getElementById('pb-module-label').value,
+        icon: document.getElementById('pb-module-icon').value
       };
       
       try {
-        const code = generator.generateModule(config);
-        generatedCode.textContent = code;
+        pbGeneratedCode = pbGenerator.generateModule(config);
+        pbGeneratedCodeEl.textContent = pbGeneratedCode;
         
-        // Store for download
-        window.generatedCode = code;
-        window.generatedFilename = `${config.moduleName}.js`;
-        
-        downloadBtn.disabled = false;
-        showStatus(`✅ Module "${config.moduleName}" generated successfully!`, 'success');
+        pbDownloadBtn.disabled = false;
+        pbShowStatus(`✅ Module "${config.moduleName}" generated successfully!`, 'success');
         
         // Auto-scroll to preview
-        generatedCode.scrollIntoView({ behavior: 'smooth' });
+        pbGeneratedCodeEl.scrollIntoView({ behavior: 'smooth' });
         
       } catch (error) {
         console.error('Generation error:', error);
-        showError('Failed to generate module: ' + error.message);
+        pbShowError('Failed to generate module: ' + error.message);
       }
     });
     
-    // Download button
-    downloadBtn.addEventListener('click', () => {
-      if (!window.generatedCode) {
-        showError('Generate code first');
+    // PB Download button
+    pbDownloadBtn.addEventListener('click', () => {
+      if (!pbGeneratedCode) {
+        pbShowError('Generate code first');
         return;
       }
       
+      const moduleName = document.getElementById('pb-module-name').value;
+      
       try {
-        const blob = new Blob([window.generatedCode], { type: 'text/javascript' });
+        const blob = new Blob([pbGeneratedCode], { type: 'text/javascript' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = window.generatedFilename;
+        a.download = `${moduleName}.js`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        showStatus(`📥 Module downloaded as "${window.generatedFilename}"`, 'success');
+        pbShowStatus(`📥 Module downloaded as "${moduleName}.js"`, 'success');
       } catch (error) {
-        showError('Download failed: ' + error.message);
+        pbShowError('Download failed: ' + error.message);
       }
     });
     
-    // Helper functions
-    function showStatus(message, type = 'info') {
-      generatorStatus.innerHTML = `
+    // PB Helper functions
+    function pbShowStatus(message, type = 'info') {
+      pbGeneratorStatus.innerHTML = `
         <div class="${type === 'error' ? 'error-message' : type === 'success' ? 'success-message' : ''}">
           ${message}
         </div>
       `;
     }
     
-    function showError(message) {
-      parsingError.textContent = message;
-      parsingError.style.display = 'block';
-      parsingSuccess.style.display = 'none';
+    function pbShowError(message) {
+      pbParsingError.textContent = message;
+      pbParsingError.style.display = 'block';
+      pbParsingSuccess.style.display = 'none';
     }
     
-    function showSuccess(message) {
-      parsingSuccess.textContent = message;
-      parsingSuccess.style.display = 'block';
-      parsingError.style.display = 'none';
+    function pbShowSuccess(message) {
+      pbParsingSuccess.textContent = message;
+      pbParsingSuccess.style.display = 'block';
+      pbParsingError.style.display = 'none';
     }
     
-    function resetUI() {
-      schemaInfo.innerHTML = '';
-      fieldList.innerHTML = '<div class="muted">No schema loaded yet...</div>';
-      tableConfig.innerHTML = '';
-      formConfig.innerHTML = '';
-      generatedCode.textContent = '// Generated code will appear here';
-      generatorStatus.innerHTML = '';
-      downloadBtn.disabled = true;
-      parsingError.style.display = 'none';
-      parsingSuccess.style.display = 'none';
-    }
+    // ========== OpenAPI Generator ==========
+    const openapiGenerator = new OpenAPIModuleGenerator();
+    let openapiSpec = null;
+    let openapiSchema = null;
+    let openapiGeneratedCode = null;
     
-    // Initialize
-    resetUI();
-  </script>
-
-  <!-- Add this section to your existing module-builder.html -->
-  <div id="openapi-section" style="display: none;">
-    <h3>OpenAPI Generator</h3>
+    // DOM Elements for OpenAPI
+    const openapiSpecEl = document.getElementById('openapi-spec');
+    const loadOpenapiBtn = document.getElementById('load-openapi');
+    const openapiCollectionEl = document.getElementById('openapi-collection');
+    const openapiBuilder = document.getElementById('openapi-builder');
+    const openapiPreview = document.getElementById('openapi-preview');
+    const openapiSchemaInfo = document.getElementById('openapi-schema-info');
+    const openapiFieldList = document.getElementById('openapi-field-list');
+    const openapiRelationsInfo = document.getElementById('openapi-relations-info');
+    const openapiGenerateBtn = document.getElementById('openapi-generate-code');
+    const openapiDownloadBtn = document.getElementById('openapi-download-module');
+    const openapiGeneratedCodeEl = document.getElementById('openapi-generated-code');
+    const openapiGeneratorStatus = document.getElementById('openapi-generator-status');
+    const openapiParsingError = document.getElementById('openapi-parsing-error');
+    const openapiParsingSuccess = document.getElementById('openapi-parsing-success');
     
-    <div class="field">
-      <span>OpenAPI Spec JSON</span>
-      <textarea id="openapi-spec" rows="20" placeholder="Paste your OpenAPI spec here..."></textarea>
-    </div>
+    // Load OpenAPI spec
+    loadOpenapiBtn.addEventListener('click', () => {
+      try {
+        openapiParsingError.style.display = 'none';
+        openapiParsingSuccess.style.display = 'none';
+        
+        openapiSpec = JSON.parse(openapiSpecEl.value);
+        
+        // Get all available collections from OpenAPI
+        const schemas = openapiSpec.components.schemas;
+        const collections = Object.keys(schemas)
+          .filter(name => name.endsWith('Record'))
+          .map(name => name.replace('Record', ''))
+          .filter(name => !name.startsWith('_')); // Skip system collections
+        
+        // Populate collection dropdown
+        openapiCollectionEl.innerHTML = '<option value="">-- Select a collection --</option>' +
+          collections.map(col => `<option value="${col}">${col}</option>`).join('');
+        
+        openapiParsingSuccess.textContent = `✅ Successfully parsed OpenAPI spec with ${collections.length} collections`;
+        openapiParsingSuccess.style.display = 'block';
+        
+        openapiShowStatus(`Select a collection to generate module`, 'info');
+        
+      } catch (error) {
+        console.error('Error parsing OpenAPI:', error);
+        openapiShowError('Failed to parse OpenAPI spec: ' + error.message);
+      }
+    });
     
-    <div class="field">
-      <span>Collection Name</span>
-      <input type="text" id="openapi-collection" placeholder="e.g., members, locations, events">
-    </div>
-    
-    <div class="field">
-      <span>Module Name (lowercase)</span>
-      <input type="text" id="openapi-module-name" placeholder="e.g., members, locations">
-    </div>
-    
-    <div class="field">
-      <span>Module Label</span>
-      <input type="text" id="openapi-module-label" placeholder="e.g., Miembros, Ubicaciones">
-    </div>
-    
-    <div class="field">
-      <span>Icon (optional)</span>
-      <input type="text" id="openapi-icon" placeholder="e.g., 👥, 📍">
-    </div>
-    
-    <button id="generate-from-openapi">Generate from OpenAPI</button>
-    
-    <div class="field">
-      <span>Generated Code</span>
-      <textarea id="openapi-generated-code" rows="30" readonly></textarea>
-    </div>
-    
-    <button id="copy-openapi-code">Copy Code</button>
-    <button id="download-openapi-module">Download Module File</button>
-  </div>
-
-  <script type="module">
-  import { OpenAPIModuleGenerator } from '../assets/js/core/OpenAPIModuleGenerator.js';
-
-  document.getElementById('toggle-openapi').addEventListener('click', () => {
-    const section = document.getElementById('openapi-section');
-    section.style.display = section.style.display === 'none' ? 'block' : 'none';
-  });
-
-  document.getElementById('generate-from-openapi').addEventListener('click', () => {
-    try {
-      const openapiSpec = JSON.parse(document.getElementById('openapi-spec').value);
-      const collectionName = document.getElementById('openapi-collection').value;
-      const moduleName = document.getElementById('openapi-module-name').value;
-      const moduleLabel = document.getElementById('openapi-module-label').value;
-      const icon = document.getElementById('openapi-icon').value || '📋';
-      
-      if (!collectionName || !moduleName || !moduleLabel) {
-        alert('Please fill in all required fields');
+    // Collection selection
+    openapiCollectionEl.addEventListener('change', () => {
+      const collectionName = openapiCollectionEl.value;
+      if (!collectionName) {
+        openapiBuilder.style.display = 'none';
+        openapiPreview.style.display = 'none';
         return;
       }
       
-      const generator = new OpenAPIModuleGenerator();
-      const schema = generator.parseOpenAPISpec(openapiSpec, collectionName);
+      try {
+        openapiSchema = openapiGenerator.parseOpenAPISpec(openapiSpec, collectionName);
+        
+        // Auto-populate module name and label
+        document.getElementById('openapi-module-name').value = collectionName;
+        document.getElementById('openapi-module-label').value = openapiGenerator.formatLabel(collectionName);
+        
+        // Show schema info
+        openapiRenderSchemaInfo();
+        
+        // Show builder and preview
+        openapiBuilder.style.display = 'grid';
+        openapiPreview.style.display = 'block';
+        
+        openapiShowStatus(`Ready to generate "${collectionName}" module`, 'info');
+        
+      } catch (error) {
+        console.error('Error parsing collection:', error);
+        openapiShowError('Failed to parse collection: ' + error.message);
+      }
+    });
+    
+    function openapiRenderSchemaInfo() {
+      if (!openapiSchema) return;
+      
+      const relationCount = openapiSchema.relationFields.length;
+      
+      openapiSchemaInfo.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+          <div>
+            <strong>Collection:</strong><br>
+            <span style="font-size: 18px; color: #1976d2;">${openapiSchema.collectionName}</span>
+          </div>
+          <div>
+            <strong>Type:</strong><br>
+            ${openapiSchema.isChurchSpecific ? '🏛️ Church-specific' : '🌍 Global'}
+          </div>
+          <div>
+            <strong>Fields:</strong><br>
+            ${openapiSchema.fields.length} total
+          </div>
+          <div>
+            <strong>Relations:</strong><br>
+            ${relationCount} detected
+          </div>
+        </div>
+      `;
+      
+      // Render field list
+      openapiFieldList.innerHTML = openapiSchema.fields.map(field => {
+        const badgeClass = field.isRelation ? 'relation' : field.type === 'select' ? 'select' : '';
+        const badgeText = field.isRelation ? 'Relation → ' + (field.relationTo || 'unknown') : 
+                         field.type === 'select' ? 'Select' : field.type;
+        
+        return `
+          <div class="field-item">
+            <div>
+              <strong>${field.label}</strong><br>
+              <small>${field.name} • ${field.required ? 'Required' : 'Optional'}</small>
+            </div>
+            <span class="field-badge ${badgeClass}">${badgeText}</span>
+          </div>
+        `;
+      }).join('');
+      
+      // Render relations info
+      if (openapiSchema.relationFields.length > 0) {
+        openapiRelationsInfo.innerHTML = `
+          <div style="background: #e8f5e8; padding: 10px; border-radius: 5px;">
+            <h5>Detected Relations:</h5>
+            <ul>
+              ${openapiSchema.relationFields.map(rel => `
+                <li><strong>${rel.label}</strong> → ${rel.relationTo}</li>
+              `).join('')}
+            </ul>
+            <small>These relations will automatically load data from their respective collections</small>
+          </div>
+        `;
+      } else {
+        openapiRelationsInfo.innerHTML = '<p>No relations detected in this collection.</p>';
+      }
+    }
+    
+    // OpenAPI Generate button
+    openapiGenerateBtn.addEventListener('click', () => {
+      if (!openapiSchema) {
+        openapiShowError('Please select a collection first');
+        return;
+      }
       
       const config = {
-        schema,
-        openapiSpec,
-        moduleName,
-        moduleLabel,
-        icon
+        schema: openapiSchema,
+        openapiSpec: openapiSpec,
+        moduleName: document.getElementById('openapi-module-name').value,
+        moduleLabel: document.getElementById('openapi-module-label').value,
+        icon: document.getElementById('openapi-icon').value || '📋'
       };
       
-      const code = generator.generateModule(config);
-      document.getElementById('openapi-generated-code').value = code;
-      
-      console.log('Schema parsed:', schema);
-      console.log('Relation fields found:', schema.relationFields.map(f => `${f.name} -> ${f.relationTo}`));
-      
-    } catch (error) {
-      console.error('Error generating from OpenAPI:', error);
-      alert('Error: ' + error.message);
-    }
-  });
-
-  document.getElementById('copy-openapi-code').addEventListener('click', () => {
-    const textarea = document.getElementById('openapi-generated-code');
-    textarea.select();
-    document.execCommand('copy');
-    alert('Code copied to clipboard!');
-  });
-
-  document.getElementById('download-openapi-module').addEventListener('click', () => {
-    const code = document.getElementById('openapi-generated-code').value;
-    const moduleName = document.getElementById('openapi-module-name').value;
+      try {
+        openapiGeneratedCode = openapiGenerator.generateModule(config);
+        openapiGeneratedCodeEl.textContent = openapiGeneratedCode;
+        
+        openapiDownloadBtn.disabled = false;
+        openapiShowStatus(`✅ Module "${config.moduleName}" generated successfully!`, 'success');
+        
+        // Auto-scroll to preview
+        openapiGeneratedCodeEl.scrollIntoView({ behavior: 'smooth' });
+        
+      } catch (error) {
+        console.error('Generation error:', error);
+        openapiShowError('Failed to generate module: ' + error.message);
+      }
+    });
     
-    if (!code || !moduleName) {
-      alert('Please generate code first');
-      return;
+    // OpenAPI Download button
+    openapiDownloadBtn.addEventListener('click', () => {
+      if (!openapiGeneratedCode) {
+        openapiShowError('Generate code first');
+        return;
+      }
+      
+      const moduleName = document.getElementById('openapi-module-name').value;
+      
+      try {
+        const blob = new Blob([openapiGeneratedCode], { type: 'text/javascript' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${moduleName}.js`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        openapiShowStatus(`📥 Module downloaded as "${moduleName}.js"`, 'success');
+      } catch (error) {
+        openapiShowError('Download failed: ' + error.message);
+      }
+    });
+    
+    // OpenAPI Helper functions
+    function openapiShowStatus(message, type = 'info') {
+      openapiGeneratorStatus.innerHTML = `
+        <div class="${type === 'error' ? 'error-message' : type === 'success' ? 'success-message' : ''}">
+          ${message}
+        </div>
+      `;
     }
     
-    const blob = new Blob([code], { type: 'text/javascript' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${moduleName}.js`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  });
+    function openapiShowError(message) {
+      openapiParsingError.textContent = message;
+      openapiParsingError.style.display = 'block';
+      openapiParsingSuccess.style.display = 'none';
+    }
+    
+    function openapiShowSuccess(message) {
+      openapiParsingSuccess.textContent = message;
+      openapiParsingSuccess.style.display = 'block';
+      openapiParsingError.style.display = 'none';
+    }
+    
+    // Initialize with sample OpenAPI spec
+    openapiSpecEl.value = JSON.stringify({
+      openapi: "3.0.3",
+      info: { title: "Sample", version: "1.0.0" },
+      components: {
+        schemas: {
+          membersRecord: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              first_name: { type: "string" },
+              last_name: { type: "string" },
+              church: { type: "string", description: "Relation field" }
+            }
+          }
+        }
+      }
+    }, null, 2);
   </script>
 </body>
 </html>
