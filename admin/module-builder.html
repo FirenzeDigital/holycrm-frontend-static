@@ -499,5 +499,117 @@
     // Initialize
     resetUI();
   </script>
+
+  <!-- Add this section to your existing module-builder.html -->
+  <div id="openapi-section" style="display: none;">
+    <h3>OpenAPI Generator</h3>
+    
+    <div class="field">
+      <span>OpenAPI Spec JSON</span>
+      <textarea id="openapi-spec" rows="20" placeholder="Paste your OpenAPI spec here..."></textarea>
+    </div>
+    
+    <div class="field">
+      <span>Collection Name</span>
+      <input type="text" id="openapi-collection" placeholder="e.g., members, locations, events">
+    </div>
+    
+    <div class="field">
+      <span>Module Name (lowercase)</span>
+      <input type="text" id="openapi-module-name" placeholder="e.g., members, locations">
+    </div>
+    
+    <div class="field">
+      <span>Module Label</span>
+      <input type="text" id="openapi-module-label" placeholder="e.g., Miembros, Ubicaciones">
+    </div>
+    
+    <div class="field">
+      <span>Icon (optional)</span>
+      <input type="text" id="openapi-icon" placeholder="e.g., 👥, 📍">
+    </div>
+    
+    <button id="generate-from-openapi">Generate from OpenAPI</button>
+    
+    <div class="field">
+      <span>Generated Code</span>
+      <textarea id="openapi-generated-code" rows="30" readonly></textarea>
+    </div>
+    
+    <button id="copy-openapi-code">Copy Code</button>
+    <button id="download-openapi-module">Download Module File</button>
+  </div>
+
+  <script type="module">
+  import { OpenAPIModuleGenerator } from '../assets/js/core/OpenAPIModuleGenerator.js';
+
+  document.getElementById('toggle-openapi').addEventListener('click', () => {
+    const section = document.getElementById('openapi-section');
+    section.style.display = section.style.display === 'none' ? 'block' : 'none';
+  });
+
+  document.getElementById('generate-from-openapi').addEventListener('click', () => {
+    try {
+      const openapiSpec = JSON.parse(document.getElementById('openapi-spec').value);
+      const collectionName = document.getElementById('openapi-collection').value;
+      const moduleName = document.getElementById('openapi-module-name').value;
+      const moduleLabel = document.getElementById('openapi-module-label').value;
+      const icon = document.getElementById('openapi-icon').value || '📋';
+      
+      if (!collectionName || !moduleName || !moduleLabel) {
+        alert('Please fill in all required fields');
+        return;
+      }
+      
+      const generator = new OpenAPIModuleGenerator();
+      const schema = generator.parseOpenAPISpec(openapiSpec, collectionName);
+      
+      const config = {
+        schema,
+        openapiSpec,
+        moduleName,
+        moduleLabel,
+        icon
+      };
+      
+      const code = generator.generateModule(config);
+      document.getElementById('openapi-generated-code').value = code;
+      
+      console.log('Schema parsed:', schema);
+      console.log('Relation fields found:', schema.relationFields.map(f => `${f.name} -> ${f.relationTo}`));
+      
+    } catch (error) {
+      console.error('Error generating from OpenAPI:', error);
+      alert('Error: ' + error.message);
+    }
+  });
+
+  document.getElementById('copy-openapi-code').addEventListener('click', () => {
+    const textarea = document.getElementById('openapi-generated-code');
+    textarea.select();
+    document.execCommand('copy');
+    alert('Code copied to clipboard!');
+  });
+
+  document.getElementById('download-openapi-module').addEventListener('click', () => {
+    const code = document.getElementById('openapi-generated-code').value;
+    const moduleName = document.getElementById('openapi-module-name').value;
+    
+    if (!code || !moduleName) {
+      alert('Please generate code first');
+      return;
+    }
+    
+    const blob = new Blob([code], { type: 'text/javascript' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${moduleName}.js`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+  </script>
 </body>
 </html>
