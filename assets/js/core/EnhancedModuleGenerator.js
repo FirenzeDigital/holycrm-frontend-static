@@ -1,355 +1,174 @@
-// assets/js/core/EnhancedModuleGenerator.js
-export class EnhancedModuleGenerator {
-  constructor() {
-    this.fieldTypeMap = {
-      'text': { type: 'text', component: 'input' },
-      'email': { type: 'email', component: 'input' },
-      'number': { type: 'number', component: 'input' },
-      'bool': { type: 'checkbox', component: 'checkbox' },
-      'select': { type: 'select', component: 'select' },
-      'date': { type: 'date', component: 'input' },
-      'relation': { type: 'select', component: 'relation' },
-      'json': { type: 'textarea', component: 'textarea' }
-    };
-  }
-
-  parseCollectionSchema(pbJson) {
-    const schema = {
-      collectionName: pbJson.name,
-      collectionId: pbJson.id,
-      fields: [],
-      hasChurchField: false,
-      isChurchSpecific: true
-    };
-
-    pbJson.fields.forEach(field => {
-      // Skip system fields
-      if (field.system || field.name === 'id' || field.name === 'created' || field.name === 'updated') {
-        return;
-      }
-
-      // Check for church field
-      if (field.name === 'church' && field.type === 'relation') {
-        schema.hasChurchField = true;
-        return;
-      }
-
-      const fieldInfo = {
-        name: field.name,
-        type: field.type,
-        required: field.required || false,
-        label: this.formatLabel(field.name),
-        options: field.values || []
-      };
-
-      // Handle special field types
-      if (field.type === 'relation') {
-        fieldInfo.componentType = 'relation';
-        fieldInfo.inputType = 'select';
-        fieldInfo.relationCollection = field.collectionId;
-        fieldInfo.maxSelect = field.maxSelect || 1;
-      } else {
-        const mapped = this.fieldTypeMap[field.type] || { type: 'text', component: 'input' };
-        fieldInfo.componentType = mapped.component;
-        fieldInfo.inputType = mapped.type;
-      }
-
-      schema.fields.push(fieldInfo);
-    });
-
-    return schema;
-  }
-
-  formatLabel(fieldName) {
-    const labelMap = {
-      'first_name': 'Nombre',
-      'last_name': 'Apellido',
-      'email': 'Email',
-      'phone': 'Teléfono',
-      'name': 'Nombre',
-      'description': 'Descripción',
-      'status': 'Estado',
-      'notes': 'Notas',
-      'tags': 'Etiquetas',
-      'date': 'Fecha',
-      'amount': 'Monto',
-      'currency': 'Moneda',
-      'concept': 'Concepto',
-      'leader_member': 'Líder',
-      'location': 'Ubicación',
-      'category': 'Categoría',
-      'ministry': 'Ministerio',
-      'event': 'Evento',
-      'member': 'Miembro',
-      'city': 'Ciudad',
-      'pastor_name': 'Nombre del Pastor',
-      'inauguration_date': 'Fecha de Inauguración'
-    };
-    
-    return labelMap[fieldName] || 
-      fieldName.split('_')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
-  }
-
-  generateModule(config) {
-    const { schema, tableColumns, formFields, moduleName, moduleLabel, icon } = config;
-    
-    const capitalizedModuleName = this.toPascalCase(moduleName);
-    const relationFields = formFields.filter(f => f.type === 'relation');
-    const hasRelations = relationFields.length > 0;
-    
-    let relationLoadingCode = '';
-    let relationServicesCode = '';
-    
-    if (hasRelations) {
-      const uniqueCollections = [...new Set(
-        relationFields
-          .map(f => this.getCollectionNameFromId(f.relationCollection))
-          .filter(Boolean)
-      )];
-      
-      relationServicesCode = uniqueCollections.map(col => {
-        const varName = this.toCamelCase(col) + 'Service';
-        return `let ${varName};`;
-      }).join('\n  ');
-      
-      relationLoadingCode = `
-  // Load relation data
-  async function loadRelationData() {
-    ${uniqueCollections.map(col => {
-      const serviceName = this.toCamelCase(col) + 'Service';
-      const varName = this.toCamelCase(col) + 'Data';
-      return `
-    ${serviceName} = new DataService('${col}');
-    const ${varName} = await ${serviceName}.getList(currentChurchId);
-    console.log('Loaded ${col}:', ${varName}.length);`;
-    }).join('')}
-    
-    return {
-      ${uniqueCollections.map(col => {
-        const varName = this.toCamelCase(col) + 'Data';
-        return `'${col}': ${varName}`;
-      }).join(',\n      ')}
-    };
-  }
-  
-  async function loadRelationOptions(field) {
-    if (field.type !== 'relation') return [];
-    
-    const collectionName = getCollectionNameFromId(field.relationCollection);
-    const data = relationData[collectionName] || [];
-    
-    return data.map(item => {
-      // Get display label based on common field names
-      let label = item.id;
-      if (item.name) label = item.name;
-      else if (item.title) label = item.title;
-      else if (item.first_name && item.last_name) label = item.first_name + ' ' + item.last_name;
-      else if (item.email) label = item.email;
-      
-      return {
-        id: item.id,
-        label: label
-      };
-    });
-  }
-
-  function getCollectionNameFromId(collectionId) {
-    // This should map your collection IDs to actual collection names
-    // For example, for members.js you might have:
-    // if collectionId is 'pbc_1942858786' (locations collection), return 'locations'
-    
-    // You can create a map based on your schema
-    const collectionMap = {
-      // Add your collection mappings here
-      // Example: 'pbc_1942858786': 'locations',
-      // 'pbc_2776461414': 'churches',
-      // etc.
-    };
-    
-    return collectionMap[collectionId] || `collection_${collectionId}`;
-  }
-  
-  function getDisplayLabel(item) {
-    if (item.name) return item.name;
-    if (item.title) return item.title;
-    if (item.first_name && item.last_name) return item.first_name + ' ' + item.last_name;
-    return item.id;
-  }
-      `;
-    }
-
-    const template = `
-// Generated module for ${moduleLabel}
-import { can } from "./permissions.js";
-import { DataService } from "./core/DataService.js";
-import { EnhancedCrudTable } from "./core/EnhancedCrudTable.js";
-import { SmartModalForm } from "./core/SmartModalForm.js";
-
-let currentChurchId = null;
-let dataService;
-let table, modal;
-${relationServicesCode}
-let relationData = {};
-
-export async function init${capitalizedModuleName}View(church) {
-  if (!church) return;
-  currentChurchId = church.id;
-
-  // Initialize main service
-  dataService = new DataService('${schema.collectionName}');
-  ${!schema.isChurchSpecific ? 'dataService.markAsGlobal();' : ''}
-
-  // Check permissions
-  const section = document.querySelector('section[data-view="${moduleName}"]');
-  if (!can("read", "${moduleName}")) {
-    section.innerHTML = '<h1>Sin permisos</h1>';
-    return;
-  }
-
-  // Render layout once
-  if (!section.querySelector("#${moduleName}-body")) {
-    renderLayout(section);
-  }
-
-  // Initialize components
-  await initComponents();
-  await refreshData();
-}
-
-async function initComponents() {
-  ${hasRelations ? `
-  // Load relation data first
-  relationData = await loadRelationData();
-  ` : ''}
-
-  // Configure and create table
-  table = new EnhancedCrudTable({
-    container: '#${moduleName}-body',
-    headerContainer: '#${moduleName}-headers',
-    columns: ${JSON.stringify(tableColumns, null, 2)},
-    canEdit: can("update", "${moduleName}"),
-    canDelete: can("delete", "${moduleName}"),
-    onEdit: openRecordModal,
-    onDelete: deleteRecord,
-    searchInput: '#${moduleName}-search',
-    expand: ${hasRelations ? "'" + relationFields.map(f => f.name).join(',') + "'" : "''"}
-  });
-
-  // Configure and create modal form
-  modal = new SmartModalForm({
-    id: '${moduleName}-modal',
-    title: '${moduleLabel}',
-    fields: ${JSON.stringify(formFields, null, 2)},
-    onSubmit: saveRecord,
-    onLoadRelations: ${hasRelations ? 'loadRelationOptions' : '() => []'}
-  });
-
-  // Wire up the "New" button
-  document.getElementById('${moduleName}-new')?.addEventListener('click', () => openRecordModal());
-}
-
-${relationLoadingCode || ''}
-
-async function refreshData() {
-  console.log('Refreshing data for church:', currentChurchId);
-  
-  // Build expand parameter for relations
-  let expand = '';
-  ${hasRelations ? `
-  const expandFields = ${JSON.stringify(relationFields.map(f => f.name))};
-  expand = expandFields.join(',');
-  ` : ''}
-  
-  const data = await dataService.getList(currentChurchId, expand);
-  console.log('Got data:', data.length, 'records');
-  table.render(data);
-}
-
-async function openRecordModal(id = null) {
-  if (id) {
-    const record = await dataService.getOne(id);
-    console.log('Opening record:', record);
-    await modal.open(record);
-  } else {
-    await modal.open({});
-  }
-}
-
-async function saveRecord(data, id = null) {
-  console.log('Saving record. ID:', id, 'Data:', data);
-  
-  const payload = {
-    ...data${schema.isChurchSpecific ? ',\n    church: currentChurchId' : ''}
-  };
-
-  try {
-    if (id) {
-      console.log('Updating existing record:', id);
-      await dataService.update(id, payload);
-    } else {
-      console.log('Creating new record');
-      await dataService.create(payload);
+// assets/js/core/EnhancedModuleGenerator.js (Updated)
+class EnhancedModuleGenerator {
+    static async generateModuleFromConfig(config) {
+        // This generates a complete module based on the config
+        const moduleClass = `
+class ${config.moduleKey.charAt(0).toUpperCase() + config.moduleKey.slice(1)}Module {
+    constructor() {
+        this.moduleKey = "${config.moduleKey}";
+        this.name = "${config.moduleName}";
+        this.icon = "${config.icon}";
+        this.type = "${config.type}";
+        this.collectionId = "${config.collectionId}";
+        this.permissions = ${JSON.stringify(config.permissions)};
+        
+        // Initialize components
+        this.table = null;
+        this.form = null;
     }
     
-    await refreshData();
-  } catch (error) {
-    console.error('Error saving record:', error);
-    alert('Error al guardar: ' + error.message);
-    throw error;
-  }
+    async initialize() {
+        // Register with ModuleRegistry
+        if (window.ModuleRegistry) {
+            window.ModuleRegistry.registerModule(this);
+        }
+        
+        // Initialize DataService
+        this.dataService = window.DataService || null;
+        
+        return this;
+    }
+    
+    renderList(container) {
+        // Create EnhancedCrudTable
+        this.table = new EnhancedCrudTable({
+            module: this,
+            container: container,
+            columns: ${JSON.stringify(config.listView.columns)},
+            itemsPerPage: ${config.listView.itemsPerPage},
+            defaultSort: "${config.listView.defaultSort}"
+        });
+        
+        this.table.render();
+        this.loadData();
+    }
+    
+    async loadData(page = 1) {
+        if (!this.dataService) return;
+        
+        try {
+            const data = await this.dataService.fetch({
+                module: this.moduleKey,
+                page: page,
+                perPage: ${config.listView.itemsPerPage}
+            });
+            
+            if (this.table) {
+                this.table.updateData(data.items, data.totalPages, data.page);
+            }
+        } catch (error) {
+            console.error('Error loading data:', error);
+        }
+    }
+    
+    openCreateForm() {
+        this.openForm();
+    }
+    
+    openEditForm(record) {
+        this.openForm(record);
+    }
+    
+    openForm(record = null) {
+        this.form = new SmartModalForm({
+            module: this,
+            fields: ${JSON.stringify(config.formView.fields)},
+            layout: "${config.formView.layout}",
+            record: record,
+            onSubmit: async (data) => {
+                if (record) {
+                    await this.updateRecord(record.id, data);
+                } else {
+                    await this.createRecord(data);
+                }
+                
+                this.loadData(this.table?.currentPage || 1);
+                this.form.close();
+            }
+        });
+        
+        this.form.open();
+    }
+    
+    async createRecord(data) {
+        if (!this.dataService) return;
+        
+        try {
+            await this.dataService.create({
+                module: this.moduleKey,
+                data: data
+            });
+            
+            return true;
+        } catch (error) {
+            console.error('Error creating record:', error);
+            throw error;
+        }
+    }
+    
+    async updateRecord(id, data) {
+        if (!this.dataService) return;
+        
+        try {
+            await this.dataService.update({
+                module: this.moduleKey,
+                id: id,
+                data: data
+            });
+            
+            return true;
+        } catch (error) {
+            console.error('Error updating record:', error);
+            throw error;
+        }
+    }
+    
+    async deleteRecord(id) {
+        if (!this.dataService) return;
+        
+        try {
+            await this.dataService.delete({
+                module: this.moduleKey,
+                id: id
+            });
+            
+            return true;
+        } catch (error) {
+            console.error('Error deleting record:', error);
+            throw error;
+        }
+    }
+    
+    checkPermission(action) {
+        const userRole = this.getCurrentRole();
+        if (!userRole) return false;
+        
+        return this.permissions[userRole]?.[action] || false;
+    }
+    
+    getCurrentRole() {
+        // Get from your auth system
+        return window.currentUser?.role || 'guest';
+    }
 }
 
-async function deleteRecord(id) {
-  if (!confirm('¿Eliminar registro?')) return;
-  
-  await dataService.delete(id);
-  await refreshData();
+// Export
+if (typeof window !== 'undefined') {
+    window.${config.moduleKey.charAt(0).toUpperCase() + config.moduleKey.slice(1)}Module = ${config.moduleKey.charAt(0).toUpperCase() + config.moduleKey.slice(1)}Module;
 }
-
-function renderLayout(section) {
-  section.innerHTML = \`
-    <h1>${moduleLabel}</h1>
+`;
+        
+        return moduleClass;
+    }
     
-    <div class="card">
-      <div class="members-toolbar">
-        <div class="members-search">
-          <input type="search" placeholder="Buscar..." id="${moduleName}-search">
-        </div>
-        <div class="members-actions">
-          \${can("create", "${moduleName}") ? \`<button id="${moduleName}-new">Nuevo</button>\` : ""}
-        </div>
-      </div>
-    </div>
-    
-    <div class="card">
-      <table class="users-table">
-        <thead>
-          <tr id="${moduleName}-headers"></tr>
-        </thead>
-        <tbody id="${moduleName}-body"></tbody>
-      </table>
-    </div>
-  \`;
-}`;
+    static generateModuleFile(config) {
+        const header = `// Generated module: ${config.moduleName}
+// Collection: ${config.collectionId}
+// Generated: ${new Date().toISOString()}
+// DO NOT EDIT THIS FILE DIRECTLY
+`;
 
-    return template;
-  }
-
-  getCollectionNameFromId(collectionId) {
-    // This should map to your actual collection names
-    // For now, return a placeholder - you'll need to implement this
-    return `collection_${collectionId}`;
-  }
-
-  toPascalCase(str) {
-    return str.replace(/(^\w|_\w)/g, match => 
-      match.replace('_', '').toUpperCase()
-    );
-  }
-
-  toCamelCase(str) {
-    return str.replace(/[_-](\w)/g, (_, letter) => letter.toUpperCase());
-  }
+        const moduleCode = this.generateModuleFromConfig(config);
+        return header + moduleCode;
+    }
 }
