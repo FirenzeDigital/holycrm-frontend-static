@@ -3,6 +3,37 @@ import { pb, logout } from "./auth.js";
 import { loadPermissionsForChurch, can, getRole } from "./permissions.js";
 import { MODULES, MODULE_CATEGORIES, shouldShowModule } from "./modules.js";
 
+// Load all modules dynamically
+async function loadModules() {
+    const modules = [
+        'members',
+        'events',      // When you create them
+        'finance'      // When you create them
+    ];
+    
+    for (const moduleName of modules) {
+        try {
+            await import(`./modules/${moduleName}.js`);
+            console.log(`✅ Loaded module: ${moduleName}`);
+        } catch (error) {
+            console.warn(`⚠️ Could not load module ${moduleName}:`, error);
+        }
+    }
+    
+    // Initialize all loaded modules
+    if (window.ModuleRegistry) {
+        window.ModuleRegistry.initializeAll();
+    }
+}
+
+// Call this when your app starts
+document.addEventListener('DOMContentLoaded', () => {
+    loadModules();
+});
+
+
+
+
 // Import all init functions
 import { initMembersView } from "./members.js";
 import { initUsersView } from "./users.js";
@@ -83,6 +114,22 @@ function renderDynamicMenu() {
     });
   });
 
+}
+
+function createNavigation() {
+    const modules = window.ModuleRegistry?.getModules() || [];
+    
+    modules.forEach(module => {
+        // Create menu item for each module
+        const menuItem = document.createElement('li');
+        menuItem.innerHTML = `
+            <a href="#${module.moduleKey}" class="nav-link">
+                <i class="icon-${module.icon}"></i>
+                ${module.name}
+            </a>
+        `;
+        document.getElementById('main-nav').appendChild(menuItem);
+    });
 }
 
 
