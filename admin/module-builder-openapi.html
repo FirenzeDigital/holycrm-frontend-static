@@ -1,0 +1,499 @@
+<!-- admin/module-builder-openapi.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>OpenAPI Spec Generator - HolyCRM</title>
+  <link rel="stylesheet" href="../assets/css/styles.css">
+  <style>
+    .builder-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .builder-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+    .schema-panel, .config-panel { background: white; border-radius: 8px; padding: 20px; }
+    .field-list { max-height: 400px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px; }
+    .field-item { 
+      padding: 12px; 
+      border-bottom: 1px solid #f0f0f0; 
+      margin: 5px 0; 
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .field-item:last-child { border-bottom: none; }
+    .field-badge {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+    .field-badge.relation { background: #e8f5e8; color: #2e7d32; }
+    .field-badge.select { background: #fff3e0; color: #f57c00; }
+    .preview-panel { grid-column: 1 / -1; }
+    .code-output { 
+      background: #1e1e1e; 
+      color: #d4d4d4; 
+      padding: 20px; 
+      border-radius: 8px; 
+      font-family: 'Monaco', monospace;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .drop-zone { 
+      border: 2px dashed #ccc; 
+      padding: 20px; 
+      text-align: center; 
+      margin: 20px 0;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    .config-section { margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 6px; }
+    .module-info { background: #e8f5e8; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
+    .error-message { color: #dc3545; background: #f8d7da; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    .success-message { color: #28a745; background: #d4edda; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    .nav-link { margin-right: 20px; color: #007bff; text-decoration: none; }
+    .nav-link:hover { text-decoration: underline; }
+    .collection-select { 
+      width: 100%; 
+      padding: 10px; 
+      border: 1px solid #ddd; 
+      border-radius: 4px; 
+      margin-bottom: 20px;
+    }
+    textarea { 
+      width: 100%; 
+      min-height: 300px; 
+      font-family: 'Monaco', monospace; 
+      font-size: 12px; 
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .sample-btn { margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <div class="builder-container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h1>📋 OpenAPI Spec Generator</h1>
+      <div>
+        <a href="module-builder-pb.html" class="nav-link">PocketBase Generator</a>
+        <a href="module-builder-openapi.html" class="nav-link active">OpenAPI Generator</a>
+      </div>
+    </div>
+    
+    <p>Generate CRUD modules from OpenAPI specifications</p>
+    
+    <div class="module-info">
+      <h3>📋 How it works:</h3>
+      <ul>
+        <li>1. Paste your full OpenAPI spec JSON (generated from PocketBase)</li>
+        <li>2. Select a collection to generate module for</li>
+        <li>3. Relation fields are automatically detected from OpenAPI</li>
+        <li>4. Generate a production-ready JavaScript module</li>
+      </ul>
+    </div>
+    
+    <div class="config-section">
+      <h3>📄 OpenAPI Specification</h3>
+      <textarea id="openapi-spec" placeholder="Paste your OpenAPI spec JSON here..."></textarea>
+      <button id="load-openapi" class="btn-primary">Parse OpenAPI Spec</button>
+      <button id="load-sample" class="btn-secondary sample-btn">Load Sample OpenAPI</button>
+      <div id="parsing-error" class="error-message" style="display:none"></div>
+      <div id="parsing-success" class="success-message" style="display:none"></div>
+    </div>
+    
+    <div id="builder-content" style="display: none;">
+      <div class="drop-zone">
+        <h3>🏗️ Select Collection</h3>
+        <select id="collection-select" class="collection-select">
+          <option value="">-- Select a collection --</option>
+        </select>
+        <div id="collection-error" class="error-message" style="display:none"></div>
+      </div>
+      
+      <div class="builder-grid">
+        <!-- Left: Schema Analysis -->
+        <div class="schema-panel">
+          <h3>📋 Collection Schema</h3>
+          <div id="schema-info"></div>
+          <h4>Available Fields:</h4>
+          <div class="field-list" id="field-list">
+            <div class="muted">Select a collection first...</div>
+          </div>
+        </div>
+        
+        <!-- Right: Configuration -->
+        <div class="config-panel">
+          <h3>⚙️ Module Configuration</h3>
+          
+          <div class="config-section">
+            <h4>Basic Info</h4>
+            <div class="field">
+              <label>Module Name (technical)</label>
+              <input type="text" id="module-name" placeholder="e.g., members">
+              <small>Used for function names and permissions</small>
+            </div>
+            
+            <div class="field">
+              <label>Display Label</label>
+              <input type="text" id="module-label" placeholder="e.g., Miembros">
+            </div>
+            
+            <div class="field">
+              <label>Icon</label>
+              <input type="text" id="module-icon" value="📋" placeholder="e.g., 👥, 📍">
+            </div>
+          </div>
+          
+          <div class="config-section">
+            <h4>Detected Relations</h4>
+            <div id="relations-info">
+              <div class="muted">Relations will appear here after parsing...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Preview & Code -->
+      <div class="preview-panel">
+        <h3>👁️ Preview & Generated Code</h3>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+          <button id="generate-code" class="btn-primary">Generate Module</button>
+          <button id="download-module" class="btn-secondary" disabled>Download JS File</button>
+          <button id="reset-builder" class="btn-secondary">Reset Builder</button>
+        </div>
+        
+        <div id="generator-status"></div>
+        
+        <div class="code-output">
+          <pre id="generated-code">// Generated code will appear here</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { OpenAPIModuleGenerator } from '../assets/js/core/OpenAPIModuleGenerator.js';
+    
+    const generator = new OpenAPIModuleGenerator();
+    let openapiSpec = null;
+    let currentSchema = null;
+    let generatedCode = null;
+    
+    // DOM Elements
+    const openapiSpecEl = document.getElementById('openapi-spec');
+    const loadOpenapiBtn = document.getElementById('load-openapi');
+    const loadSampleBtn = document.getElementById('load-sample');
+    const collectionSelect = document.getElementById('collection-select');
+    const builderContent = document.getElementById('builder-content');
+    const schemaInfo = document.getElementById('schema-info');
+    const fieldList = document.getElementById('field-list');
+    const relationsInfo = document.getElementById('relations-info');
+    const generateBtn = document.getElementById('generate-code');
+    const downloadBtn = document.getElementById('download-module');
+    const resetBtn = document.getElementById('reset-builder');
+    const generatedCodeEl = document.getElementById('generated-code');
+    const generatorStatus = document.getElementById('generator-status');
+    const parsingError = document.getElementById('parsing-error');
+    const parsingSuccess = document.getElementById('parsing-success');
+    const collectionError = document.getElementById('collection-error');
+    
+    // Sample OpenAPI spec
+    const sampleOpenAPI = {
+      "openapi": "3.0.3",
+      "info": {
+        "title": "PocketBase API",
+        "version": "1.0.0",
+        "description": "Sample OpenAPI spec"
+      },
+      "components": {
+        "schemas": {
+          "membersRecord": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "first_name": { "type": "string" },
+              "last_name": { "type": "string" },
+              "email": { "type": "string", "format": "email" },
+              "church": { 
+                "type": "string",
+                "description": "Relation field. When expanded, this becomes the related record object."
+              },
+              "created": { "type": "string", "format": "date-time" },
+              "updated": { "type": "string", "format": "date-time" }
+            },
+            "required": ["first_name", "last_name"]
+          }
+        }
+      }
+    };
+    
+    // Load sample button
+    loadSampleBtn.addEventListener('click', () => {
+      openapiSpecEl.value = JSON.stringify(sampleOpenAPI, null, 2);
+      showSuccess('Sample OpenAPI loaded. Click "Parse OpenAPI Spec" to continue.');
+    });
+    
+    // Parse OpenAPI button
+    loadOpenapiBtn.addEventListener('click', () => {
+      try {
+        parsingError.style.display = 'none';
+        collectionError.style.display = 'none';
+        
+        openapiSpec = JSON.parse(openapiSpecEl.value);
+        
+        // Get all available collections from OpenAPI
+        const schemas = openapiSpec.components?.schemas;
+        if (!schemas) {
+          throw new Error('No schemas found in OpenAPI spec');
+        }
+        
+        const collections = Object.keys(schemas)
+          .filter(name => name.endsWith('Record'))
+          .map(name => name.replace('Record', ''))
+          .filter(name => !name.startsWith('_')); // Skip system collections
+        
+        if (collections.length === 0) {
+          throw new Error('No valid collections found in OpenAPI schemas');
+        }
+        
+        // Populate collection dropdown
+        collectionSelect.innerHTML = '<option value="">-- Select a collection --</option>' +
+          collections.sort().map(col => `<option value="${col}">${col}</option>`).join('');
+        
+        builderContent.style.display = 'block';
+        parsingSuccess.textContent = `✅ Successfully parsed OpenAPI spec with ${collections.length} collections`;
+        parsingSuccess.style.display = 'block';
+        
+        showStatus('Select a collection to generate module', 'info');
+        
+      } catch (error) {
+        console.error('Error parsing OpenAPI:', error);
+        showError('Failed to parse OpenAPI spec: ' + error.message);
+      }
+    });
+    
+    // Collection selection
+    collectionSelect.addEventListener('change', () => {
+      const collectionName = collectionSelect.value;
+      if (!collectionName) {
+        currentSchema = null;
+        renderSchemaInfo();
+        return;
+      }
+      
+      try {
+        collectionError.style.display = 'none';
+        
+        currentSchema = generator.parseOpenAPISpec(openapiSpec, collectionName);
+        
+        // Auto-populate module name and label
+        document.getElementById('module-name').value = collectionName;
+        document.getElementById('module-label').value = generator.formatLabel(collectionName);
+        
+        renderSchemaInfo();
+        
+        showStatus(`Ready to generate "${collectionName}" module`, 'info');
+        
+      } catch (error) {
+        console.error('Error parsing collection:', error);
+        showCollectionError('Failed to parse collection: ' + error.message);
+        currentSchema = null;
+      }
+    });
+    
+    function renderSchemaInfo() {
+      if (!currentSchema) {
+        schemaInfo.innerHTML = '';
+        fieldList.innerHTML = '<div class="muted">Select a collection first...</div>';
+        relationsInfo.innerHTML = '<div class="muted">Relations will appear here after parsing...</div>';
+        return;
+      }
+      
+      const relationCount = currentSchema.relationFields.length;
+      
+      schemaInfo.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+          <div>
+            <strong>Collection:</strong><br>
+            <span style="font-size: 18px; color: #1976d2;">${currentSchema.collectionName}</span>
+          </div>
+          <div>
+            <strong>Type:</strong><br>
+            ${currentSchema.isChurchSpecific ? '🏛️ Church-specific' : '🌍 Global'}
+          </div>
+          <div>
+            <strong>Fields:</strong><br>
+            ${currentSchema.fields.length} total
+          </div>
+          <div>
+            <strong>Relations:</strong><br>
+            ${relationCount} detected
+          </div>
+        </div>
+      `;
+      
+      // Render field list
+      fieldList.innerHTML = currentSchema.fields.map(field => {
+        const badgeClass = field.isRelation ? 'relation' : '';
+        const badgeText = field.isRelation ? 'Relation → ' + (field.relationTo || 'unknown') : field.type;
+        
+        return `
+          <div class="field-item">
+            <div>
+              <strong>${field.label}</strong><br>
+              <small>${field.name} • ${field.required ? 'Required' : 'Optional'}</small>
+            </div>
+            <span class="field-badge ${badgeClass}">${badgeText}</span>
+          </div>
+        `;
+      }).join('');
+      
+      // Render relations info
+      if (currentSchema.relationFields.length > 0) {
+        relationsInfo.innerHTML = `
+          <div style="background: #e8f5e8; padding: 15px; border-radius: 5px;">
+            <h4 style="margin-top: 0;">🔗 Detected Relations</h4>
+            <p>The following relations will be automatically handled:</p>
+            <ul>
+              ${currentSchema.relationFields.map(rel => `
+                <li>
+                  <strong>${rel.label}</strong> → ${rel.relationTo}
+                  <small style="display: block; color: #666;">Field: ${rel.name}, Type: ${rel.type}</small>
+                </li>
+              `).join('')}
+            </ul>
+            <small>These relations will automatically load data from their respective collections using the PocketBase SDK.</small>
+          </div>
+        `;
+      } else {
+        relationsInfo.innerHTML = '<div style="padding: 15px; background: #f8f9fa; border-radius: 5px;">No relations detected in this collection.</div>';
+      }
+    }
+    
+    // Reset button
+    resetBtn.addEventListener('click', () => {
+      currentSchema = null;
+      generatedCode = null;
+      builderContent.style.display = 'none';
+      openapiSpecEl.value = '';
+      resetUI();
+      showSuccess('Builder reset. Ready for new OpenAPI spec.');
+    });
+    
+    // Generate button
+    generateBtn.addEventListener('click', () => {
+      if (!currentSchema) {
+        showError('Please select a collection first');
+        return;
+      }
+      
+      const config = {
+        schema: currentSchema,
+        openapiSpec: openapiSpec,
+        moduleName: document.getElementById('module-name').value,
+        moduleLabel: document.getElementById('module-label').value,
+        icon: document.getElementById('module-icon').value || '📋'
+      };
+      
+      try {
+        // Generate table columns from schema
+        const tableColumns = generator.generateTableColumns(currentSchema, true);
+        
+        // Generate form fields from schema
+        const formFields = generator.generateFormFields(currentSchema);
+        
+        // Update config with generated fields
+        config.tableColumns = tableColumns;
+        config.formFields = formFields;
+        
+        generatedCode = generator.generateModule(config);
+        generatedCodeEl.textContent = generatedCode;
+        
+        downloadBtn.disabled = false;
+        showStatus(`✅ Module "${config.moduleName}" generated successfully!`, 'success');
+        
+        // Auto-scroll to preview
+        generatedCodeEl.scrollIntoView({ behavior: 'smooth' });
+        
+      } catch (error) {
+        console.error('Generation error:', error);
+        showError('Failed to generate module: ' + error.message);
+      }
+    });
+    
+    // Download button
+    downloadBtn.addEventListener('click', () => {
+      if (!generatedCode) {
+        showError('Generate code first');
+        return;
+      }
+      
+      const moduleName = document.getElementById('module-name').value;
+      
+      try {
+        const blob = new Blob([generatedCode], { type: 'text/javascript' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${moduleName}.js`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showStatus(`📥 Module downloaded as "${moduleName}.js"`, 'success');
+      } catch (error) {
+        showError('Download failed: ' + error.message);
+      }
+    });
+    
+    // Helper functions
+    function showStatus(message, type = 'info') {
+      generatorStatus.innerHTML = `
+        <div class="${type === 'error' ? 'error-message' : type === 'success' ? 'success-message' : ''}">
+          ${message}
+        </div>
+      `;
+    }
+    
+    function showError(message) {
+      parsingError.textContent = message;
+      parsingError.style.display = 'block';
+      parsingSuccess.style.display = 'none';
+    }
+    
+    function showCollectionError(message) {
+      collectionError.textContent = message;
+      collectionError.style.display = 'block';
+    }
+    
+    function showSuccess(message) {
+      parsingSuccess.textContent = message;
+      parsingSuccess.style.display = 'block';
+      parsingError.style.display = 'none';
+    }
+    
+    function resetUI() {
+      schemaInfo.innerHTML = '';
+      fieldList.innerHTML = '<div class="muted">Select a collection first...</div>';
+      relationsInfo.innerHTML = '<div class="muted">Relations will appear here after parsing...</div>';
+      generatedCodeEl.textContent = '// Generated code will appear here';
+      generatorStatus.innerHTML = '';
+      downloadBtn.disabled = true;
+      parsingError.style.display = 'none';
+      parsingSuccess.style.display = 'none';
+      collectionError.style.display = 'none';
+      
+      // Reset form fields
+      document.getElementById('module-name').value = '';
+      document.getElementById('module-label').value = '';
+      document.getElementById('module-icon').value = '📋';
+      collectionSelect.innerHTML = '<option value="">-- Select a collection --</option>';
+    }
+    
+    // Initialize
+    resetUI();
+  </script>
+</body>
+</html>
