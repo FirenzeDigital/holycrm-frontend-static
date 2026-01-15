@@ -162,39 +162,25 @@
             <!-- Sidebar: Collections List -->
             <div class="sidebar">
                 <div class="form-group">
-                    <label for="pb-url">PocketBase URL</label>
-                    <input type="url" id="pb-url" class="form-control" 
-                           value="http://localhost:8090" placeholder="http://localhost:8090">
+                    <h4>Paste PocketBase Schema</h4>
+                    <p class="text-muted">Copy your schema from PocketBase admin → Settings → Import collections</p>
+                    <textarea id="pb-schema-input" class="form-control" 
+                              rows="15" 
+                              placeholder='Paste your pb_schema.json array here...'
+                              style="font-family: monospace; font-size: 12px;"></textarea>
                 </div>
                 
-                <div class="form-group">
-                    <label for="auth-email">Admin Email</label>
-                    <input type="email" id="auth-email" class="form-control" 
-                           placeholder="admin@example.com">
+                <div class="btn-group">
+                    <button id="parse-schema-btn" class="btn btn-primary">Parse Schema</button>
+                    <button id="load-example-btn" class="btn btn-outline-secondary">Example</button>
                 </div>
-                
-                <div class="form-group">
-                    <label for="auth-password">Admin Password</label>
-                    <input type="password" id="auth-password" class="form-control" 
-                           placeholder="••••••••">
-                </div>
-                
-                <button id="connect-btn" class="btn btn-primary btn-block">Connect to PocketBase</button>
-                <button id="fetch-btn" class="btn btn-outline-secondary btn-block" disabled>Fetch Collections</button>
                 
                 <hr>
                 
                 <div class="collection-list">
                     <h4>Collections</h4>
                     <div id="collections-list">
-                        <p class="text-muted">Connect to PocketBase first</p>
-                    </div>
-                </div>
-                
-                <div class="module-list">
-                    <h4>Existing Modules</h4>
-                    <div id="modules-list">
-                        <!-- Dynamically loaded -->
+                        <p class="text-muted">Parse schema to see collections</p>
                     </div>
                 </div>
             </div>

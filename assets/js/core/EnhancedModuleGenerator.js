@@ -160,7 +160,44 @@ if (typeof window !== 'undefined') {
         
         return moduleClass;
     }
-    
+
+    static generateModuleFromSchema(collection, config) {
+        const moduleName = config.moduleName || collection.name;
+        const className = collection.name.split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join('');
+        
+        return `
+    // Auto-generated module for ${collection.name}
+    class ${className}Module extends BaseModule {
+        constructor() {
+            super();
+            this.key = "${collection.name}";
+            this.name = "${moduleName}";
+            this.icon = "${config.icon || 'default'}";
+            this.permissions = ${JSON.stringify(config.permissions || {}, null, 2)};
+        }
+        
+        async initialize() {
+            await super.initialize();
+            // Module-specific initialization
+        }
+        
+        getListViewConfig() {
+            return ${JSON.stringify(config.listView || {}, null, 2)};
+        }
+        
+        getFormViewConfig() {
+            return ${JSON.stringify(config.formView || {}, null, 2)};
+        }
+    }
+
+    // Auto-register
+    if (typeof window !== 'undefined') {
+        window.moduleRegistry.register(new ${className}Module());
+    }`;
+    }    
+
     static generateModuleFile(config) {
         const header = `// Generated module: ${config.moduleName}
 // Collection: ${config.collectionId}
