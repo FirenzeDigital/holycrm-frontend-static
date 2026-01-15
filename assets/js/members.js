@@ -1,4 +1,4 @@
-// Generated module for Members
+// Generated module for Members from OpenAPI
 import { can } from "./permissions.js";
 import { DataService } from "./core/DataService.js";
 import { EnhancedCrudTable } from "./core/EnhancedCrudTable.js";
@@ -7,7 +7,8 @@ import { SmartModalForm } from "./core/SmartModalForm.js";
 let currentChurchId = null;
 let dataService;
 let table, modal;
-
+let churchesService;
+  let locationsService;
 let relationData = {};
 
 export async function initMembersView(church) {
@@ -37,6 +38,9 @@ export async function initMembersView(church) {
 
 async function initComponents() {
   
+  // Load relation data first
+  relationData = await loadRelationData();
+  
 
   // Configure and create table
   table = new EnhancedCrudTable({
@@ -45,28 +49,31 @@ async function initComponents() {
     columns: [
   {
     "key": "first_name",
-    "label": "Nombre",
-    "format": null
+    "label": "Nombre"
   },
   {
     "key": "last_name",
-    "label": "Apellido",
-    "format": null
+    "label": "Apellido"
   },
   {
     "key": "email",
-    "label": "Email",
-    "format": null
+    "label": "Email"
   },
   {
     "key": "phone",
-    "label": "Teléfono",
-    "format": null
+    "label": "Teléfono"
   },
   {
     "key": "status",
-    "label": "Estado",
-    "format": null
+    "label": "Estado"
+  },
+  {
+    "key": "notes",
+    "label": "Notas"
+  },
+  {
+    "key": "location.name",
+    "label": "Location"
   }
 ],
     canEdit: can("update", "members"),
@@ -74,7 +81,7 @@ async function initComponents() {
     onEdit: openRecordModal,
     onDelete: deleteRecord,
     searchInput: '#members-search',
-    expand: ''
+    expand: 'church,location'
   });
 
   // Configure and create modal form
@@ -86,35 +93,44 @@ async function initComponents() {
     "name": "first_name",
     "label": "Nombre",
     "type": "text",
-    "required": true
+    "componentType": "input",
+    "required": true,
+    "options": []
   },
   {
     "name": "last_name",
     "label": "Apellido",
     "type": "text",
-    "required": true
+    "componentType": "input",
+    "required": true,
+    "options": []
   },
   {
     "name": "email",
     "label": "Email",
     "type": "email",
-    "required": false
+    "componentType": "input",
+    "required": false,
+    "options": []
   },
   {
     "name": "phone",
     "label": "Teléfono",
     "type": "text",
-    "required": false
+    "componentType": "input",
+    "required": false,
+    "options": []
   },
   {
     "name": "status",
     "label": "Estado",
     "type": "select",
+    "componentType": "select",
     "required": true,
     "options": [
       {
         "value": "active",
-        "label": "Active"
+        "label": "Activo"
       },
       {
         "value": "inactive",
@@ -126,26 +142,47 @@ async function initComponents() {
     "name": "notes",
     "label": "Notas",
     "type": "text",
-    "required": false
+    "componentType": "input",
+    "required": false,
+    "options": []
   },
   {
     "name": "tags",
-    "label": "Etiquetas",
-    "type": "textarea",
+    "label": "Tags",
+    "type": "json",
+    "componentType": "textarea",
     "required": false,
-    "placeholder": "Ej: [\"tag1\", \"tag2\"]"
+    "options": [],
+    "placeholder": "Ej: {\"clave\": \"valor\"} o [\"item1\", \"item2\"]"
   },
   {
     "name": "location",
-    "label": "Ubicación",
+    "label": "Location",
     "type": "select",
-    "required": false,
     "componentType": "relation",
-    "relationCollection": "pbc_1942858786"
+    "required": false,
+    "options": [],
+    "relationTo": "locations"
+  },
+  {
+    "name": "created",
+    "label": "Creado",
+    "type": "date",
+    "componentType": "date",
+    "required": false,
+    "options": []
+  },
+  {
+    "name": "updated",
+    "label": "Actualizado",
+    "type": "date",
+    "componentType": "date",
+    "required": false,
+    "options": []
   }
 ],
     onSubmit: saveRecord,
-    onLoadRelations: () => []
+    onLoadRelations: loadRelationOptions
   });
 
   // Wire up the "New" button
@@ -153,12 +190,51 @@ async function initComponents() {
 }
 
 
+  // Load relation data
+  async function loadRelationData() {
+    
+    churchesService = new DataService('churches');
+    const churchesData = await churchesService.getList(currentChurchId);
+    console.log('Loaded churches:', churchesData.length);
+    locationsService = new DataService('locations');
+    const locationsData = await locationsService.getList(currentChurchId);
+    console.log('Loaded locations:', locationsData.length);
+    
+    return {
+      'churches': churchesData,
+      'locations': locationsData
+    };
+  }
+      
+
+  async function loadRelationOptions(field) {
+    if (!field.relationTo) return [];
+    
+    const data = relationData[field.relationTo] || [];
+    return data.map(item => ({
+      id: item.id,
+      label: getDisplayLabel(item)
+    }));
+  }
+  
+  function getDisplayLabel(item) {
+    // Try common display fields in order
+    if (item.name) return item.name;
+    if (item.title) return item.title;
+    if (item.first_name && item.last_name) return item.first_name + ' ' + item.last_name;
+    if (item.email) return item.email;
+    return item.id;
+  }
+      
 
 async function refreshData() {
   console.log('Refreshing data for church:', currentChurchId);
   
   // Build expand parameter for relations
   let expand = '';
+  
+  const expandFields = ["church","location"];
+  expand = expandFields.join(',');
   
   
   const data = await dataService.getList(currentChurchId, expand);
@@ -202,7 +278,7 @@ async function saveRecord(data, id = null) {
 }
 
 async function deleteRecord(id) {
-  if (!confirm('¿Eliminar registro?')) return;
+  if (!confirm('¿Está seguro de eliminar este registro?')) return;
   
   await dataService.delete(id);
   await refreshData();
