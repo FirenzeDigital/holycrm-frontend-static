@@ -1,0 +1,114 @@
+{
+  "id": "members",
+  "label": "Members",
+  "resource": "members",
+  "datasource": {
+    "type": "pb_collection",
+    "collection": "members",
+    "tenant": {
+      "field": "church"
+    }
+  },
+  "table": {
+    "defaultSort": "created",
+    "columns": [
+      {
+        "field": "first_name",
+        "label": "First Name",
+        "type": "text"
+      },
+      {
+        "field": "last_name",
+        "label": "Last Name",
+        "type": "text"
+      },
+      {
+        "field": "email",
+        "label": "Email",
+        "type": "email"
+      },
+      {
+        "field": "phone",
+        "label": "Phone",
+        "type": "text"
+      },
+      {
+        "field": "status",
+        "label": "Status",
+        "type": "select"
+      },
+      {
+        "field": "notes",
+        "label": "Notes",
+        "type": "text"
+      }
+    ]
+  },
+  "form": {
+    "fields": [
+      {
+        "field": "first_name",
+        "label": "First Name",
+        "type": "text",
+        "required": true,
+        "placeholder": ""
+      },
+      {
+        "field": "last_name",
+        "label": "Last Name",
+        "type": "text",
+        "required": true,
+        "placeholder": ""
+      },
+      {
+        "field": "email",
+        "label": "Email",
+        "type": "email",
+        "required": false,
+        "placeholder": ""
+      },
+      {
+        "field": "phone",
+        "label": "Phone",
+        "type": "text",
+        "required": false,
+        "placeholder": ""
+      },
+      {
+        "field": "status",
+        "label": "Status",
+        "type": "select",
+        "options": [
+          "active",
+          "inactive"
+        ],
+        "required": true,
+        "placeholder": ""
+      },
+      {
+        "field": "notes",
+        "label": "Notes",
+        "type": "text",
+        "required": false,
+        "placeholder": ""
+      },
+      {
+        "field": "tags",
+        "label": "Tags",
+        "type": "text",
+        "required": false,
+        "placeholder": ""
+      },
+      {
+        "field": "location",
+        "label": "Location",
+        "type": "relation",
+        "collection": "locations",
+        "valueField": "id",
+        "labelField": "name",
+        "filterByTenant": true,
+        "required": false
+      }
+    ]
+  }
+}

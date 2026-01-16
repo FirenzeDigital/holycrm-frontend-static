@@ -183,6 +183,13 @@
                         <p class="text-muted">Parse schema to see collections</p>
                     </div>
                 </div>
+
+                <div class="existing-configs" style="margin-top: 20px;">
+                    <h4>Existing Configurations</h4>
+                    <div id="modules-list">
+                        <p class="text-muted">No configurations loaded yet</p>
+                    </div>
+                </div>
             </div>
             
             <!-- Main Content: Configuration -->
@@ -241,23 +248,51 @@
                         <!-- List View Configuration -->
                         <div class="tab-content" id="tab-list-view">
                             <div class="config-section">
-                                <h4>List View Columns</h4>
-                                <p class="text-muted">Configure which columns appear in the table and how they behave</p>
-                                
-                                <div id="list-fields-container">
-                                    <!-- Fields will be dynamically added here -->
+                                <div class="section-header">
+                                    <h4>📋 List View Configuration</h4>
+                                    <div class="section-actions">
+                                        <button type="button" id="auto-configure-btn" class="btn btn-outline btn-sm">
+                                            Auto-configure
+                                        </button>
+                                        <button type="button" id="add-column-btn" class="btn btn-outline btn-sm">
+                                            + Add Custom Column
+                                        </button>
+                                        <button type="button" id="sort-columns-btn" class="btn btn-outline btn-sm">
+                                            Sort A-Z
+                                        </button>
+                                    </div>
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label for="default-sort">Default Sort Field</label>
+                                    <label>Default Sort Field</label>
                                     <select id="default-sort" class="form-control">
-                                        <!-- Dynamically populated -->
+                                        <option value="created">Created Date (Newest First)</option>
+                                        <option value="-created">Created Date (Oldest First)</option>
+                                        <option value="updated">Updated Date</option>
                                     </select>
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label for="items-per-page">Items Per Page</label>
+                                    <label>Items Per Page</label>
                                     <input type="number" id="items-per-page" class="form-control" value="25" min="5" max="100">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="enable-search" checked> Enable Search
+                                    </label>
+                                </div>
+                                
+                                <div class="columns-configuration">
+                                    <h5>Columns Configuration</h5>
+                                    <p class="text-muted">Drag to reorder, click to configure each column</p>
+                                    
+                                    <div id="columns-list-container" class="columns-list">
+                                        <!-- Columns will be rendered here -->
+                                        <div class="empty-state">
+                                            <p>No columns configured yet. Click "Auto-configure" to start.</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -265,11 +300,13 @@
                         <!-- Form View Configuration -->
                         <div class="tab-content" id="tab-form-view">
                             <div class="config-section">
-                                <h4>Form Configuration</h4>
-                                <p class="text-muted">Configure the form fields for create/edit views</p>
-                                
-                                <div id="form-fields-container">
-                                    <!-- Fields will be dynamically added here -->
+                                <div class="section-header">
+                                    <h4>📝 Form Configuration</h4>
+                                    <div class="section-actions">
+                                        <button type="button" class="btn btn-outline btn-sm" onclick="moduleBuilder.autoConfigure()">
+                                            Auto-configure Form
+                                        </button>
+                                    </div>
                                 </div>
                                 
                                 <div class="form-group">
@@ -278,7 +315,65 @@
                                         <option value="single">Single Column</option>
                                         <option value="two-column">Two Columns</option>
                                         <option value="tabs">Tabbed Interface</option>
+                                        <option value="wizard">Wizard (Multi-step)</option>
                                     </select>
+                                </div>
+                                
+                                <div class="fields-configuration">
+                                    <h5>Form Fields</h5>
+                                    <p class="text-muted">Configure each field that appears in the create/edit form</p>
+                                    
+                                    <div id="fields-list-container" class="fields-list">
+                                        <!-- Fields will be rendered here -->
+                                        <div class="empty-state">
+                                            <p>No form fields configured yet.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-content" id="tab-relations">
+                            <div class="config-section">
+                                <div class="section-header">
+                                    <h4>🔗 Relations Configuration</h4>
+                                    <div class="section-actions">
+                                        <button type="button" id="scan-relations-btn" class="btn btn-outline btn-sm">
+                                            Scan for Relations
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div id="relations-container">
+                                    <p class="text-muted">Relations will be displayed here after scanning.</p>
+                                </div>
+                                
+                                <div class="relations-help">
+                                    <h5>About Relations</h5>
+                                    <p>Relations allow you to connect records between collections. For example:</p>
+                                    <ul>
+                                        <li><strong>Members → Church</strong>: Each member belongs to one church</li>
+                                        <li><strong>Events → Ministry</strong>: Each event is organized by a ministry</li>
+                                        <li><strong>Users → Roles</strong>: Users can have multiple roles</li>
+                                    </ul>
+                                    <p>Relations are automatically handled in forms (dropdown selection) and tables (display related data).</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-content" id="tab-ui-preview">
+                            <div class="config-section">
+                                <div class="section-header">
+                                    <h4>👁️ UI Preview</h4>
+                                    <div class="section-actions">
+                                        <button type="button" class="btn btn-outline btn-sm" onclick="moduleBuilder.previewUI()">
+                                            Refresh Preview
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div id="ui-preview-container">
+                                    <p class="text-muted">Preview will appear here after generating configuration.</p>
                                 </div>
                             </div>
                         </div>
@@ -322,9 +417,11 @@
                                 <div class="preview-area" id="json-preview"></div>
                                 
                                 <div class="btn-group">
-                                    <button id="copy-json-btn" class="btn btn-outline-primary">Copy JSON</button>
-                                    <button id="download-json-btn" class="btn btn-outline-secondary">Download Config</button>
-                                    <button id="generate-module-btn" class="btn btn-primary">Generate Module</button>
+                                    <button id="generate-module-btn" class="btn btn-primary">Generate Configuration</button>
+                                    <button id="preview-ui-btn" class="btn btn-outline">Preview UI</button>
+                                    <button id="copy-json-btn" class="btn btn-outline">Copy JSON</button>
+                                    <button id="download-json-btn" class="btn btn-success">Download Config</button>
+                                    <button id="reset-config-btn" class="btn btn-danger">Reset</button>
                                 </div>
                                 
                                 <div style="margin-top: 30px; display: none;" id="code-preview-section">
@@ -354,11 +451,9 @@
         <div class="field-config" data-field-name="">
             <div class="field-header">
                 <h5 class="field-name">Field Name</h5>
-                <div class="field-actions">
-                    <label class="checkbox-item">
-                        <input type="checkbox" class="field-include"> Include
-                    </label>
-                </div>
+                <label class="checkbox-item">
+                    <input type="checkbox" class="field-include"> Include
+                </label>
             </div>
             
             <div class="field-options" style="display: none;">
@@ -371,46 +466,67 @@
                     <label>Field Type</label>
                     <select class="form-control field-type">
                         <option value="text">Text</option>
-                        <option value="textarea">Text Area</option>
                         <option value="email">Email</option>
                         <option value="number">Number</option>
                         <option value="date">Date</option>
-                        <option value="select">Select Dropdown</option>
-                        <option value="checkbox">Checkbox</option>
-                        <option value="relation">Relation</option>
+                        <option value="select">Select</option>
+                        <option value="boolean">Boolean</option>
+                        <option value="textarea">Text Area</option>
+                        <option value="file">File</option>
                     </select>
                 </div>
                 
-                <div class="form-group" id="relation-target" style="display: none;">
-                    <label>Related Collection</label>
-                    <select class="form-control relation-collection">
-                        <!-- Dynamically populated -->
-                    </select>
+                <div class="form-group select-options-container" style="display: none;">
+                    <label>Select Options (one per line)</label>
+                    <textarea class="form-control select-options" rows="3" placeholder="Option 1&#10;Option 2&#10;Option 3"></textarea>
                 </div>
                 
                 <div class="form-group">
-                    <label>
+                    <label>Placeholder</label>
+                    <input type="text" class="form-control field-placeholder" placeholder="Optional placeholder">
+                </div>
+                
+                <div class="checkbox-group">
+                    <label class="checkbox-item">
                         <input type="checkbox" class="field-required"> Required
                     </label>
-                </div>
-                
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" class="field-sortable"> Sortable in table
+                    <label class="checkbox-item">
+                        <input type="checkbox" class="field-sortable"> Sortable
                     </label>
-                </div>
-                
-                <div class="form-group">
-                    <label>
+                    <label class="checkbox-item">
                         <input type="checkbox" class="field-filterable"> Filterable
                     </label>
+                </div>
+                
+                <div class="form-group">
+                    <label>Column Width</label>
+                    <select class="form-control field-width">
+                        <option value="auto">Auto</option>
+                        <option value="100px">100px</option>
+                        <option value="150px">150px</option>
+                        <option value="200px">200px</option>
+                        <option value="250px">250px</option>
+                        <option value="300px">300px</option>
+                    </select>
                 </div>
             </div>
         </div>
     </template>
 
-    <script src="../assets/js/pocketbase.umd.js"></script>
-    <script src="../assets/js/core/DataService.js"></script>
+    <!-- <script src="../assets/js/pocketbase.umd.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/pocketbase@0.26.6/dist/pocketbase.umd.js"></script>
     <script src="module-builder-ui.js"></script>
+    <!-- JavaScript to handle select options visibility -->
+    <script>
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('field-type')) {
+            const fieldConfig = e.target.closest('.field-config');
+            const optionsContainer = fieldConfig.querySelector('.select-options-container');
+            if (optionsContainer) {
+                optionsContainer.style.display = e.target.value === 'select' ? 'block' : 'none';
+            }
+        }
+    });
+    </script>
 </body>
 </html>

@@ -1,0 +1,12 @@
+{
+  "modules": [
+    {
+      "id": "members",
+      "label": "Personas",
+      "icon": "👥",
+      "category": "main",
+      "resource": "members"
+    }
+  ]
+}
+
